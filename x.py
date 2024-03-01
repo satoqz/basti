@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import click
 import subprocess
 import tomllib
@@ -22,7 +23,7 @@ with open("inventory.toml", "rb") as f:
 
 
 @click.group()
-def cli():
+def cli() -> None:
     pass
 
 
@@ -32,7 +33,7 @@ def cli():
     type=click.Choice(["bastid", "etcd"]),
     required=True,
 )
-def build_cmd(service: str):
+def build_cmd(service: str) -> None:
     image_tag, dockerfile = {
         "bastid": (BASTID_IMAGE_TAG, BASTID_DOCKERFILE),
         "etcd": (ETCD_IMAGE_TAG, ETCD_DOCKERFILE),
@@ -57,7 +58,7 @@ def build_cmd(service: str):
 @click.option("--group", type=str, default=INVENTORY["default_group"])
 @click.option("--build/--no-build", type=bool, default=True)
 @click.pass_context
-def deploy_cmd(ctx: click.Context, service: str, group: str, build: bool):
+def deploy_cmd(ctx: click.Context, service: str, group: str, build: bool) -> None:
     if build:
         ctx.invoke(build_cmd, service=service)
 
@@ -84,7 +85,7 @@ def deploy_cmd(ctx: click.Context, service: str, group: str, build: bool):
 @cli.command(name="stop")
 @click.argument("service", type=click.Choice(["bastid", "etcd"]), required=True)
 @click.option("--group", type=str, default=INVENTORY["default_group"])
-def stop_cmd(service: str, group: str):
+def stop_cmd(service: str, group: str) -> None:
     container_name = {
         "bastid": BASTID_CONTAINER_NAME,
         "etcd": ETCD_CONTAINER_NAME,
@@ -116,7 +117,7 @@ def start_cmd(
     deploy: bool,
     build: bool,
     stop: bool,
-):
+) -> None:
     if stop:
         ctx.invoke(stop_cmd, service=service, group=group)
     if deploy:
@@ -124,7 +125,7 @@ def start_cmd(
     {"bastid": start_bastid, "etcd": start_etcd}[service](group)
 
 
-def start_bastid(group: str):
+def start_bastid(group: str) -> None:
     for host in INVENTORY[group]:
         host_details = INVENTORY[group][host]
         docker_command = " ".join(
@@ -156,7 +157,7 @@ def start_bastid(group: str):
             sys.exit(1)
 
 
-def start_etcd(group: str):
+def start_etcd(group: str) -> None:
     cluster = ",".join(
         f"{host}=http://{INVENTORY[group][host]["ip"]}:{ETCD_PEER_PORT}"
         for host in INVENTORY[group]
