@@ -10,6 +10,7 @@ BASTID_DOCKERFILE = "bastid.Dockerfile"
 BASTID_IMAGE_TAG = "toasterwaver/bastid:latest"
 BASTID_CONTAINER_NAME = "basti-bastid"
 BASTID_PORT = 1337
+BASTID_WORKERS = 3
 
 ETCD_DOCKERFILE = "etcd.Dockerfile"
 ETCD_IMAGE_TAG = "toasterwaver/etcd:latest"
@@ -122,13 +123,36 @@ def start_cmd(
         ctx.invoke(stop_cmd, service=service, group=group)
     if deploy:
         ctx.invoke(deploy_cmd, service=service, group=group, build=build)
-    {"bastid": start_bastid, "etcd": start_etcd}[service](group)
 
+    container_name = {
+        "bastid": BASTID_CONTAINER_NAME,
+        "etcd": ETCD_CONTAINER_NAME,
+    }[service]
 
-def start_bastid(group: str) -> None:
+    container_image = {
+        "bastid": BASTID_IMAGE_TAG,
+        "etcd": ETCD_IMAGE_TAG,
+    }[service]
+
+    container_ports = {
+        "bastid": [BASTID_PORT],
+        "etcd": [ETCD_CLIENT_PORT, ETCD_PEER_PORT],
+    }[service]
+
+    etcd_cluster_string = {
+        "bastid": lambda: ",".join(
+            f"{INVENTORY[group][host]["ip"]}" for host in INVENTORY[group]
+        ),
+        "etcd": lambda: ",".join(
+            f"{host}=http://{INVENTORY[group][host]["ip"]}:{ETCD_PEER_PORT}"
+            for host in INVENTORY[group]
+        ),
+    }[service]()
+
     for host in INVENTORY[group]:
         host_details = INVENTORY[group][host]
-        docker_command = " ".join(
+
+        docker_command = (
             [
                 "sudo",
                 "docker",
@@ -136,69 +160,41 @@ def start_bastid(group: str) -> None:
                 "-d",
                 "--init",
                 "--rm",
-                f"--name={BASTID_CONTAINER_NAME}",
-                f"-p={BASTID_PORT}:{BASTID_PORT}",
-                BASTID_IMAGE_TAG,
-                "bastid",
+                f"--name={container_name}",
             ]
-        )
-        result = subprocess.run(
-            f"ssh '{host_details["ssh"]}' '{docker_command}'",
-            shell=True,
-            stdin=False,
-            capture_output=True,
+            + [f"-p={port}:{port}" for port in container_ports]
+            + [container_image, service]
         )
 
-        if result.returncode == 0:
-            click.echo(f"started bastid on {host}.")
-        else:
-            click.echo(f"failed starting bastid on {host}:")
-            click.echo(result.stderr)
-            sys.exit(1)
-
-
-def start_etcd(group: str) -> None:
-    cluster = ",".join(
-        f"{host}=http://{INVENTORY[group][host]["ip"]}:{ETCD_PEER_PORT}"
-        for host in INVENTORY[group]
-    )
-
-    for host in INVENTORY[group]:
-        host_details = INVENTORY[group][host]
-        docker_command = " ".join(
-            [
-                "sudo",
-                "docker",
-                "run",
-                "-d",
-                "--init",
-                "--rm",
-                f"--name={ETCD_CONTAINER_NAME}",
-                f"-p={ETCD_CLIENT_PORT}:{ETCD_CLIENT_PORT}",
-                f"-p={ETCD_PEER_PORT}:{ETCD_PEER_PORT}",
-                ETCD_IMAGE_TAG,
-                "etcd",
+        service_args = {
+            "bastid": lambda: [
+                f"--workers={BASTID_WORKERS}",
+                f"--listen=0.0.0.0:{BASTID_PORT}",
+                f"--etcd={etcd_cluster_string}",
+            ],
+            "etcd": lambda: [
                 f"--name={host}",
                 f"--initial-advertise-peer-urls=http://{host_details["ip"]}:{ETCD_PEER_PORT}",
                 f"--listen-peer-urls=http://0.0.0.0:{ETCD_PEER_PORT}",
                 f"--listen-client-urls=http://0.0.0.0:{ETCD_CLIENT_PORT}",
                 f"--advertise-client-urls=http://{host_details["ip"]}:{ETCD_CLIENT_PORT}",
                 f"--initial-cluster-token={ETCD_CLUSTER_TOKEN}",
-                f"--initial-cluster={cluster}",
+                f"--initial-cluster={etcd_cluster_string}",
                 "--initial-cluster-state=new",
-            ]
-        )
+            ],
+        }[service]()
+
         result = subprocess.run(
-            f"ssh '{host_details["ssh"]}' '{docker_command}'",
+            f"ssh '{host_details["ssh"]}' '{" ".join(docker_command + service_args)}'",
             shell=True,
             stdin=False,
             capture_output=True,
         )
 
         if result.returncode == 0:
-            click.echo(f"started etcd on {host}.")
+            click.echo(f"started {service} on {host}.")
         else:
-            click.echo(f"failed starting etcd on {host}:")
+            click.echo(f"failed starting {service} on {host}:")
             click.echo(result.stderr)
             sys.exit(1)
 
