@@ -1,1 +1,1 @@
-pub async fn run_worker() {}
+pub async fn run() {}

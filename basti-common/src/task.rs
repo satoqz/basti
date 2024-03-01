@@ -17,6 +17,7 @@ pub struct TaskKey {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum TaskState {
     Queued,
     Running,
@@ -25,19 +26,26 @@ pub enum TaskState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskDetails {
     pub priority: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub assignee: Option<String>,
     pub duration: Duration,
     pub remaining: Duration,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateTaskPayload {
+    pub duration: Duration,
+    #[serde(default)]
+    pub priority: u32,
+}
+
 pub enum Error {
     UnknownState,
     MalformedKey,
 }
 
 impl Task {
-    pub fn new(priority: u32, duration: Duration) -> Self {
+    pub fn generate(priority: u32, duration: Duration) -> Self {
         Self {
             key: TaskKey::default(),
             details: TaskDetails::new(priority, duration),
