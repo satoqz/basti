@@ -1,0 +1,3 @@
+[alias]
+bastid = "run -p basti-daemon --"
+bastictl = "run -p basti-cli --"

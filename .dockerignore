@@ -1,0 +1,7 @@
+target/
+*.Dockerfile
+.dockerignore
+.gitignore
+x.py
+inventory.toml
+*.md
