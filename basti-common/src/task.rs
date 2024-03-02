@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Error, Result};
+use anyhow::{anyhow, bail, Error, Result};
 use chrono::{DateTime, Utc};
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
@@ -100,7 +100,7 @@ impl FromStr for TaskKey {
         let parts: Vec<&str> = s.split('_').collect();
 
         if parts.len() != 3 || parts[0] != "task" {
-            return Err(anyhow!("malformed task key"));
+            bail!("malformed task key")
         }
 
         let state = TaskState::from_str(parts[1], false).map_err(|err| anyhow!(err))?;

@@ -8,6 +8,7 @@ name = "bastictl"
 path = "src/main.rs"
 
 [dependencies]
+anyhow.workspace = true
 basti-common = { path = "../basti-common" }
 clap = { workspace = true, features = ["env"] }
 colored.workspace = true

@@ -1,6 +1,7 @@
+use anyhow::{bail, Result};
 use basti_common::task::{CreateTaskPayload, Task, TaskState};
 use reqwest::Method;
-use std::{fmt::Display, time::Duration};
+use std::time::Duration;
 use url::Url;
 
 const TASKS_ENDPOINT: &str = "/api/tasks";
@@ -9,29 +10,6 @@ const TASKS_ENDPOINT: &str = "/api/tasks";
 pub struct BastiClient {
     endpoints: Vec<Url>,
     http_client: reqwest::Client,
-}
-
-#[derive(Debug)]
-pub enum Error {
-    Death,
-    Api(String),
-    Reqwest(reqwest::Error),
-}
-
-impl Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Death => write!(f, "All API endpoints are dead."),
-            Self::Api(message) => write!(f, "API Error: {message}"),
-            Self::Reqwest(error) => write!(f, "Request Error: {error}"),
-        }
-    }
-}
-
-impl From<reqwest::Error> for Error {
-    fn from(value: reqwest::Error) -> Self {
-        Self::Reqwest(value)
-    }
 }
 
 impl BastiClient {
@@ -46,7 +24,7 @@ impl BastiClient {
         }
     }
 
-    pub async fn list(&self, state: Option<TaskState>) -> Result<Vec<Task>, Error> {
+    pub async fn list(&self, state: Option<TaskState>) -> Result<Vec<Task>> {
         for endpoint in &self.endpoints {
             let mut endpoint = endpoint.clone();
             endpoint.set_path(TASKS_ENDPOINT);
@@ -63,17 +41,16 @@ impl BastiClient {
             };
 
             if !response.status().is_success() {
-                let error = response.text().await?;
-                return Err(Error::Api(error));
+                bail!("{}", response.text().await?)
             }
 
             return Ok(response.json().await?);
         }
 
-        Err(Error::Death)
+        bail!("All API endpoints are dead.")
     }
 
-    pub async fn submit(&self, duration: Duration, priority: u32) -> Result<Task, Error> {
+    pub async fn submit(&self, duration: Duration, priority: u32) -> Result<Task> {
         let payload = CreateTaskPayload { duration, priority };
 
         for endpoint in &self.endpoints {
@@ -91,13 +68,12 @@ impl BastiClient {
             };
 
             if !response.status().is_success() {
-                let error = response.text().await?;
-                return Err(Error::Api(error));
+                bail!("{}", response.text().await?)
             }
 
             return Ok(response.json().await?);
         }
 
-        Err(Error::Death)
+        bail!("All API endpoints are dead.")
     }
 }
