@@ -83,7 +83,6 @@ async fn create_task(
 
 #[derive(Debug, Deserialize)]
 struct ListTasksParams {
-    #[serde(rename = "type")]
     state: Option<TaskState>,
 }
 
