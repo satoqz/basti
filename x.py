@@ -7,12 +7,12 @@ import sys
 
 SERVICES = ["bastid", "etcd"]
 
-BASTID_DOCKERFILE = "bastid.Dockerfile"
+BASTID_DOCKERFILE = "docker/bastid.Dockerfile"
 BASTID_IMAGE_TAG = "toasterwaver/bastid:latest"
 BASTID_PORT = 1337
 BASTID_WORKERS = 3
 
-ETCD_DOCKERFILE = "etcd.Dockerfile"
+ETCD_DOCKERFILE = "docker/etcd.Dockerfile"
 ETCD_IMAGE_TAG = "toasterwaver/etcd:latest"
 ETCD_CLUSTER_TOKEN = "basti-etcd-cluster"
 ETCD_CLIENT_PORT = 2379

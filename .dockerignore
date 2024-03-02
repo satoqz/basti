@@ -1,7 +1,15 @@
+.vscode/
+
+.cargo/
 target/
-*.Dockerfile
-.dockerignore
+
+.git/
 .gitignore
+
+docker/
+.dockerignore
+
 x.py
 inventory.toml
+
 *.md
