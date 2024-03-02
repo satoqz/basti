@@ -38,8 +38,16 @@ pub async fn list_command(args: ListArgs, client: BastiClient) {
             task.key.id.to_string(),
             task.key.state.to_string(),
             task.details.assignee.unwrap_or("none".into()),
-            format!("{}s", task.details.duration.as_secs()),
-            format!("{}s", task.details.remaining.as_secs()),
+            format!(
+                "{}.{:03}s",
+                task.details.duration.as_secs(),
+                task.details.duration.subsec_millis()
+            ),
+            format!(
+                "{}.{:03}s",
+                task.details.remaining.as_secs(),
+                task.details.duration.subsec_millis()
+            ),
             task.details.priority.to_string(),
         ])
     }

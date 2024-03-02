@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
         .pretty()
         .init();
 
-    let client = Client::connect(args.etcd).await.unwrap();
+    let client = Client::connect(args.etcd).await?;
     let api_handle = api::run(args.listen, client.clone());
 
     if let Some(workers) = NonZeroUsize::new(args.workers) {
