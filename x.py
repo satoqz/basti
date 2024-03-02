@@ -5,16 +5,15 @@ import subprocess
 import tomllib
 import sys
 
+SERVICES = ["bastid", "etcd"]
 
 BASTID_DOCKERFILE = "bastid.Dockerfile"
 BASTID_IMAGE_TAG = "toasterwaver/bastid:latest"
-BASTID_CONTAINER_NAME = "basti-bastid"
 BASTID_PORT = 1337
 BASTID_WORKERS = 3
 
 ETCD_DOCKERFILE = "etcd.Dockerfile"
 ETCD_IMAGE_TAG = "toasterwaver/etcd:latest"
-ETCD_CONTAINER_NAME = "basti-etcd"
 ETCD_CLUSTER_TOKEN = "basti-etcd-cluster"
 ETCD_CLIENT_PORT = 2379
 ETCD_PEER_PORT = 2380
@@ -31,7 +30,7 @@ def cli() -> None:
 @cli.command(name="build")
 @click.argument(
     "service",
-    type=click.Choice(["bastid", "etcd"]),
+    type=click.Choice(SERVICES),
     required=True,
 )
 def build_cmd(service: str) -> None:
@@ -55,18 +54,18 @@ def build_cmd(service: str) -> None:
 
 
 @cli.command(name="deploy")
-@click.argument("service", type=click.Choice(["bastid", "etcd"]), required=True)
-@click.option("--group", type=str, default=INVENTORY["default_group"])
-@click.option("--build/--no-build", type=bool, default=True)
+@click.argument("service", type=click.Choice(SERVICES), required=True)
+@click.option("--group", "-g", type=str, default=INVENTORY["default_group"])
+@click.option("--no-build", is_flag=True, type=bool, default=False)
 @click.pass_context
-def deploy_cmd(ctx: click.Context, service: str, group: str, build: bool) -> None:
-    if build:
+def deploy_cmd(ctx: click.Context, service: str, group: str, no_build: bool) -> None:
+    if not no_build:
         ctx.invoke(build_cmd, service=service)
 
     image_tag = {"bastid": BASTID_IMAGE_TAG, "etcd": ETCD_IMAGE_TAG}[service]
 
-    for host in INVENTORY[group]:
-        ssh = INVENTORY[group][host]["ssh"]
+    for node in INVENTORY[group]:
+        ssh = INVENTORY[group][node]["ssh"]
 
         result = subprocess.run(
             f"docker save '{image_tag}' | ssh '{ssh}' 'sudo docker load'",
@@ -76,58 +75,47 @@ def deploy_cmd(ctx: click.Context, service: str, group: str, build: bool) -> Non
         )
 
         if result.returncode == 0:
-            click.echo(f"copied image {image_tag} to {host}.")
+            click.echo(f"copied image {image_tag} to {node}.")
         else:
-            click.echo(f"failed copying image to {host}:")
+            click.echo(f"failed copying image to {node}:")
             click.echo(result.stderr)
             sys.exit(1)
 
 
 @cli.command(name="stop")
-@click.argument("service", type=click.Choice(["bastid", "etcd"]), required=True)
-@click.option("--group", type=str, default=INVENTORY["default_group"])
+@click.argument("service", type=click.Choice(SERVICES), required=True)
+@click.option("--group", "-g", type=str, default=INVENTORY["default_group"])
 def stop_cmd(service: str, group: str) -> None:
-    container_name = {
-        "bastid": BASTID_CONTAINER_NAME,
-        "etcd": ETCD_CONTAINER_NAME,
-    }[service]
-
-    for host in INVENTORY[group]:
-        host_details = INVENTORY[group][host]
+    for node in INVENTORY[group]:
+        node_details = INVENTORY[group][node]
         result = subprocess.run(
-            f"ssh '{host_details["ssh"]}' 'sudo docker kill {container_name}'",
-            shell=True,
+            ["ssh", node_details["ssh"], f"sudo docker kill basti-{service}"],
             stdin=False,
             capture_output=True,
         )
         if result.returncode == 0:
-            click.echo(f"stopped {service} on {host}.")
+            click.echo(f"stopped {service} on {node}.")
 
 
 @cli.command(name="start")
-@click.argument("service", type=click.Choice(["bastid", "etcd"]), required=True)
-@click.option("--group", type=str, default=INVENTORY["default_group"])
-@click.option("--deploy/--no-deploy", type=bool, default=False)
-@click.option("--build/--no-build", type=bool, default=True)
-@click.option("--stop/--no-stop", type=bool, default=True)
+@click.argument("service", type=click.Choice(SERVICES), required=True)
+@click.option("--group", "-g", type=str, default=INVENTORY["default_group"])
+@click.option("--deploy", is_flag=True, type=bool, default=False)
+@click.option("--no-build", is_flag=True, type=bool, default=False)
+@click.option("--no-stop", is_flag=True, type=bool, default=False)
 @click.pass_context
 def start_cmd(
     ctx: click.Context,
     service: str,
     group: str,
     deploy: bool,
-    build: bool,
-    stop: bool,
+    no_build: bool,
+    no_stop: bool,
 ) -> None:
-    if stop:
+    if not no_stop:
         ctx.invoke(stop_cmd, service=service, group=group)
     if deploy:
-        ctx.invoke(deploy_cmd, service=service, group=group, build=build)
-
-    container_name = {
-        "bastid": BASTID_CONTAINER_NAME,
-        "etcd": ETCD_CONTAINER_NAME,
-    }[service]
+        ctx.invoke(deploy_cmd, service=service, group=group, no_build=no_build)
 
     container_image = {
         "bastid": BASTID_IMAGE_TAG,
@@ -141,16 +129,17 @@ def start_cmd(
 
     etcd_cluster_string = {
         "bastid": lambda: ",".join(
-            f"{INVENTORY[group][host]["ip"]}" for host in INVENTORY[group]
+            f"http://{INVENTORY[group][node]["ip"]}:{ETCD_CLIENT_PORT}"
+            for node in INVENTORY[group]
         ),
         "etcd": lambda: ",".join(
-            f"{host}=http://{INVENTORY[group][host]["ip"]}:{ETCD_PEER_PORT}"
-            for host in INVENTORY[group]
+            f"{node}=http://{INVENTORY[group][node]["ip"]}:{ETCD_PEER_PORT}"
+            for node in INVENTORY[group]
         ),
     }[service]()
 
-    for host in INVENTORY[group]:
-        host_details = INVENTORY[group][host]
+    for node in INVENTORY[group]:
+        node_details = INVENTORY[group][node]
 
         docker_command = (
             [
@@ -160,7 +149,7 @@ def start_cmd(
                 "-d",
                 "--init",
                 "--rm",
-                f"--name={container_name}",
+                f"--name=basti-{service}",
             ]
             + [f"-p={port}:{port}" for port in container_ports]
             + [container_image, service]
@@ -173,11 +162,11 @@ def start_cmd(
                 f"--etcd={etcd_cluster_string}",
             ],
             "etcd": lambda: [
-                f"--name={host}",
-                f"--initial-advertise-peer-urls=http://{host_details["ip"]}:{ETCD_PEER_PORT}",
+                f"--name={node}",
+                f"--initial-advertise-peer-urls=http://{node_details["ip"]}:{ETCD_PEER_PORT}",
                 f"--listen-peer-urls=http://0.0.0.0:{ETCD_PEER_PORT}",
                 f"--listen-client-urls=http://0.0.0.0:{ETCD_CLIENT_PORT}",
-                f"--advertise-client-urls=http://{host_details["ip"]}:{ETCD_CLIENT_PORT}",
+                f"--advertise-client-urls=http://{node_details["ip"]}:{ETCD_CLIENT_PORT}",
                 f"--initial-cluster-token={ETCD_CLUSTER_TOKEN}",
                 f"--initial-cluster={etcd_cluster_string}",
                 "--initial-cluster-state=new",
@@ -185,18 +174,44 @@ def start_cmd(
         }[service]()
 
         result = subprocess.run(
-            f"ssh '{host_details["ssh"]}' '{" ".join(docker_command + service_args)}'",
-            shell=True,
+            ["ssh", node_details["ssh"], " ".join(docker_command + service_args)],
             stdin=False,
             capture_output=True,
         )
 
         if result.returncode == 0:
-            click.echo(f"started {service} on {host}.")
+            click.echo(f"started {service} on {node}.")
         else:
-            click.echo(f"failed starting {service} on {host}:")
+            click.echo(f"failed starting {service} on {node}:")
             click.echo(result.stderr)
             sys.exit(1)
+
+
+@cli.command(name="logs")
+@click.argument("service", type=click.Choice(SERVICES), required=True)
+@click.argument("node", type=str, required=True)
+@click.option("--group", "-g", type=str, default=INVENTORY["default_group"])
+@click.option("--follow", "-f", is_flag=True, type=bool, default=False)
+def logs_cmd(service: str, node: str, group: str, follow: bool) -> None:
+    docker_command = [
+        "sudo",
+        "docker",
+        "logs",
+        *(["-f"] if follow else []),
+        f"basti-{service}",
+    ]
+    subprocess.run(
+        ["ssh", INVENTORY[group][node]["ssh"], " ".join(docker_command)],
+        stdin=False,
+    )
+
+
+@cli.command(name="ssh")
+@click.argument("node", type=str, required=True)
+@click.argument("args", type=str, nargs=-1)
+@click.option("--group", "-g", type=str, default=INVENTORY["default_group"])
+def ssh_cmd(node: str, args: list[str], group: str) -> None:
+    subprocess.run(["ssh", INVENTORY[group][node]["ssh"], " ".join(args)])
 
 
 if __name__ == "__main__":
