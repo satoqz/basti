@@ -1,5 +1,5 @@
 [package]
-name = "basti-cli"
+name = "basti-client"
 version.workspace = true
 edition.workspace = true
 

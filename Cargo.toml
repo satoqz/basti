@@ -1,5 +1,5 @@
 [workspace]
-members = ["basti-cli", "basti-common", "basti-daemon"]
+members = ["basti-client", "basti-common", "basti-daemon"]
 resolver = "2"
 
 [workspace.package]
