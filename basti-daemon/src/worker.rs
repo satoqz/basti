@@ -12,6 +12,10 @@ pub async fn run(amount: NonZeroUsize, client: Client) -> Result<()> {
 
     let mut client = client.new_connection().await?;
 
+    loop {
+        sleep(Duration::from_secs(10));
+    }
+
     Ok(())
 }
 
