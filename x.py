@@ -39,6 +39,7 @@ def build_cmd(service: str) -> None:
         "etcd": (ETCD_IMAGE_TAG, ETCD_DOCKERFILE),
     }[service]
 
+    click.echo(f"building image {image_tag}...")
     result = subprocess.run(
         ["docker", "build", "-t", image_tag, "-f", dockerfile, "."],
         stdin=False,
