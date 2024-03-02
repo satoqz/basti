@@ -45,6 +45,7 @@ impl From<anyhow::Error> for ApiError {
 
 type ApiResult<T> = Result<(StatusCode, Json<T>), ApiError>;
 
+#[tracing::instrument(skip_all)]
 pub async fn run(addr: SocketAddr, client: Client) -> anyhow::Result<()> {
     let trace_layer = TraceLayer::new_for_http()
         .on_request(DefaultOnRequest::new().level(Level::INFO))
@@ -59,7 +60,7 @@ pub async fn run(addr: SocketAddr, client: Client) -> anyhow::Result<()> {
 
     let listener = tokio::net::TcpListener::bind(addr)
         .await
-        .context("Failed to bind address")?;
+        .context("Failed to bind address.")?;
     tracing::info!("Listening at http://{addr}");
 
     axum::serve(listener, app)
@@ -67,7 +68,7 @@ pub async fn run(addr: SocketAddr, client: Client) -> anyhow::Result<()> {
         .context("Failed to serve HTTP.")
 }
 
-#[tracing::instrument(skip(client), err(Display))]
+#[tracing::instrument(skip(client), err(Debug))]
 async fn create_task(
     State(mut client): State<Client>,
     Json(payload): Json<CreateTaskPayload>,
@@ -86,7 +87,7 @@ struct ListTasksParams {
     state: Option<TaskState>,
 }
 
-#[tracing::instrument(skip(client), err(Display))]
+#[tracing::instrument(skip(client), err(Debug))]
 async fn list_tasks(
     State(mut client): State<Client>,
     Query(params): Query<ListTasksParams>,
