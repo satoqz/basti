@@ -13,15 +13,14 @@ pub struct BastiClient {
 }
 
 impl BastiClient {
-    pub fn new(endpoints: Vec<Url>) -> Self {
-        Self {
+    pub fn new(endpoints: Vec<Url>) -> Result<Self> {
+        Ok(Self {
             endpoints,
             http_client: reqwest::Client::builder()
                 .connect_timeout(Duration::from_secs(2))
                 .timeout(Duration::from_secs(2))
-                .build()
-                .unwrap(),
-        }
+                .build()?,
+        })
     }
 
     pub async fn list(&self, state: Option<TaskState>) -> Result<Vec<Task>> {
