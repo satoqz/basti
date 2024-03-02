@@ -13,6 +13,7 @@ basti-common = { path = "../basti-common" }
 clap = { workspace = true, features = ["env"] }
 colored.workspace = true
 reqwest.workspace = true
+serde.workspace = true
 tabled.workspace = true
 tokio.workspace = true
 url.workspace = true
