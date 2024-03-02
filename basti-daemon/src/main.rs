@@ -48,7 +48,7 @@ async fn main() {
     .unwrap();
 
     tokio::join!(
-        api::run(cli.listen, cli.name, etcd.clone()),
-        worker::run(cli.workers, etcd.clone())
+        api::run(cli.listen, &cli.name, etcd.clone()),
+        worker::run(cli.workers, &cli.name, etcd.clone())
     );
 }

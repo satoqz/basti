@@ -49,7 +49,7 @@ impl IntoResponse for Error {
 
 type HandlerResult<T> = Result<T, Error>;
 
-pub async fn run(addr: SocketAddr, name: String, etcd: Client) {
+pub async fn run(addr: SocketAddr, name: &str, etcd: Client) {
     let name_header = HeaderValue::from_str(&name.to_ascii_lowercase()).unwrap();
     let app = Router::new()
         .route("/api/tasks", get(list_tasks))
