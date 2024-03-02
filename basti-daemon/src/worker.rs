@@ -5,45 +5,36 @@ use basti_common::task::Task;
 use std::{num::NonZeroUsize, time::Duration};
 use tokio::{task::JoinSet, time::sleep};
 
-#[tracing::instrument(skip(client), level = "info")]
-pub async fn run(amount: NonZeroUsize, client: Client) -> Result<()> {
-    let mut pool = Pool::spawn(amount, client.clone()).await;
-    pool.detach();
+pub async fn run(amount: NonZeroUsize, client: Client) {
+    let mut join_set = JoinSet::new();
+    let (sender, receiver) = async_channel::bounded(1);
 
-    let mut client = client.new_connection().await?;
-
-    loop {
-        sleep(Duration::from_secs(10)).await;
+    for _ in 0..amount.get() {
+        join_set.spawn(worker(client.clone(), receiver.clone()));
     }
 
-    Ok(())
-}
+    join_set.detach_all();
 
-#[derive(Debug)]
-struct Pool {
-    join_set: JoinSet<()>,
-    sender: Sender<Task>,
-}
+    let feed_task = async {
+        loop {
+            let Ok(client) = client.new_connection().await else {
+                continue;
+            };
 
-impl Pool {
-    async fn spawn(size: NonZeroUsize, client: Client) -> Self {
-        let mut join_set = JoinSet::new();
-        let (sender, receiver) = async_channel::bounded(1);
-
-        for _ in 0..size.get() {
-            join_set.spawn(worker(client.clone(), receiver.clone()));
+            let Ok(()) = feed_workers(client, &sender).await else {
+                continue;
+            };
         }
+    };
 
-        Self { join_set, sender }
-    }
+    let requeue_task = async { &client };
 
-    async fn queue(&self, task: Task) {
-        self.sender.send(task).await.unwrap()
-    }
+    tokio::join!(feed_task, requeue_task);
+}
 
-    fn detach(&mut self) {
-        self.join_set.detach_all();
-    }
+async fn feed_workers(mut client: Client, sender: &Sender<Task>) -> Result<()> {
+    let (_, mut stream) = client.watch("task_queued_", None).await?;
+    Ok(())
 }
 
 async fn worker(mut client: Client, receiver: Receiver<Task>) {

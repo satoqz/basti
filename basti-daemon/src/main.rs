@@ -3,7 +3,7 @@ mod client;
 mod worker;
 
 use crate::client::Client;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use clap::Parser;
 use std::{net::SocketAddr, num::NonZeroUsize};
 use tracing::Level;
@@ -47,18 +47,10 @@ async fn main() -> Result<()> {
 
     if let Some(workers) = NonZeroUsize::new(args.workers) {
         tokio::select! {
-            result = api_handle => {
-                tracing::warn!("API exited unexpectedly!");
-                result
-            },
-            result = worker::run(workers, client.clone()) =>  {
-                tracing::warn!("Worker exited unexpectedly!");
-                result
-            }
+            result = api_handle => result,
+            _ = worker::run(workers, client.clone()) =>  bail!("Worker exited unexpectedly.")
         }
     } else {
-        let result = api_handle.await;
-        tracing::warn!("API exited unexpectedly!");
-        return result;
+        api_handle.await
     }
 }
