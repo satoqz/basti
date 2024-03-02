@@ -37,9 +37,9 @@ impl From<basti_common::task::Error> for Error {
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
         match self {
-            Self::SerdeJson(err) => eprintln!("serde json error: {err}"),
-            Self::Etcd(err) => eprintln!("etcd error: {err}"),
-            Self::TaskData(err) => eprintln!("task data error: {err}"),
+            Self::SerdeJson(err) => tracing::warn!("serde json error: {err}"),
+            Self::Etcd(err) => tracing::error!("etcd error: {err}"),
+            Self::TaskData(err) => tracing::warn!("task data error: {err}"),
         }
 
         (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error").into_response()
@@ -55,6 +55,7 @@ pub async fn run(addr: SocketAddr, etcd: Client) {
         .with_state(etcd);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    tracing::info!("listening at {addr}");
     axum::serve(listener, app).await.unwrap();
 }
 
@@ -66,6 +67,7 @@ async fn create_task(
 
     etcd.put(task.key.to_string(), serde_json::to_string(&task)?, None)
         .await?;
+    tracing::info!("created task {}", task.key.id);
 
     Ok((StatusCode::CREATED, Json(task)))
 }
@@ -105,5 +107,6 @@ async fn list_tasks(
         });
     }
 
+    tracing::info!("listing {} tasks", tasks.len());
     Ok((StatusCode::OK, Json(tasks)))
 }

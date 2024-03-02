@@ -29,6 +29,8 @@ struct Cli {
 async fn main() {
     let cli = Cli::parse();
 
+    tracing_subscriber::fmt().without_time().init();
+
     let etcd = Client::connect(
         cli.etcd,
         Some(
