@@ -11,11 +11,11 @@ use tabled::{
 #[derive(Debug, Args)]
 pub struct ListArgs {
     #[clap(long, required = false, help = "Task state to filter by")]
-    filter: Option<TaskState>,
+    state: Option<TaskState>,
 }
 
 pub async fn list_command(args: ListArgs, client: BastiClient) {
-    let tasks = match client.list(args.filter).await {
+    let tasks = match client.list(args.state).await {
         Ok(tasks) => tasks,
         Err(error) => {
             eprintln!("{} {}", "✖".red().bold(), error);

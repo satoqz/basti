@@ -1,3 +1,5 @@
+use anyhow::{anyhow, Error, Result};
+use chrono::{DateTime, Utc};
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, str::FromStr, time::Duration};
@@ -31,6 +33,7 @@ pub struct TaskDetails {
     pub assignee: Option<String>,
     pub duration: Duration,
     pub remaining: Duration,
+    pub last_update: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,11 +41,6 @@ pub struct CreateTaskPayload {
     pub duration: Duration,
     #[serde(default)]
     pub priority: u32,
-}
-
-pub enum Error {
-    UnknownState,
-    MalformedKey,
 }
 
 impl Task {
@@ -73,9 +71,10 @@ impl TaskDetails {
     pub fn new(priority: u32, duration: Duration) -> Self {
         Self {
             priority,
+            assignee: None,
             duration,
             remaining: duration,
-            assignee: None,
+            last_update: Utc::now(),
         }
     }
 }
@@ -95,26 +94,17 @@ impl Display for TaskState {
     }
 }
 
-impl Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::UnknownState => write!(f, "unknown task state"),
-            Self::MalformedKey => write!(f, "malformed task key"),
-        }
-    }
-}
-
 impl FromStr for TaskKey {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = s.split('_').collect();
 
         if parts.len() != 3 || parts[0] != "task" {
-            return Err(Error::MalformedKey);
+            return Err(anyhow!("malformed task key"));
         }
 
-        let state = TaskState::from_str(parts[1], false).map_err(|_| Error::UnknownState)?;
-        let id = Uuid::from_str(parts[2]).map_err(|_| Error::MalformedKey)?;
+        let state = TaskState::from_str(parts[1], false).map_err(|err| anyhow!(err))?;
+        let id = Uuid::from_str(parts[2])?;
 
         Ok(Self { id, state })
     }

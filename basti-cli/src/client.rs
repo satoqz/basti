@@ -46,15 +46,15 @@ impl BastiClient {
         }
     }
 
-    pub async fn list(&self, filter: Option<TaskState>) -> Result<Vec<Task>, Error> {
+    pub async fn list(&self, state: Option<TaskState>) -> Result<Vec<Task>, Error> {
         for endpoint in &self.endpoints {
             let mut endpoint = endpoint.clone();
             endpoint.set_path(TASKS_ENDPOINT);
 
-            if let Some(ref filter) = filter {
+            if let Some(ref state) = state {
                 endpoint
                     .query_pairs_mut()
-                    .append_pair("type", &filter.to_string());
+                    .append_pair("state", &state.to_string());
             }
 
             let request = self.http_client.request(Method::GET, endpoint).build()?;

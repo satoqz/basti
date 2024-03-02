@@ -1,9 +1,12 @@
 mod api;
+mod client;
 mod worker;
 
+use crate::client::Client;
+use anyhow::Result;
 use clap::Parser;
-use etcd_client::{Client, ConnectOptions};
-use std::{net::SocketAddr, time::Duration};
+use std::{net::SocketAddr, num::NonZeroUsize};
+use tracing::Level;
 use url::Url;
 
 #[derive(Debug, Parser)]
@@ -25,30 +28,34 @@ struct Cli {
 
     #[clap(long, default_value = "3", help = "Number of workers to run")]
     workers: usize,
-
-    #[clap(long, required = true, help = "Name of the node")]
-    name: String,
 }
 
 #[tokio::main]
-async fn main() {
-    let cli = Cli::parse();
+async fn main() -> Result<()> {
+    let args = Cli::parse();
 
-    tracing_subscriber::fmt().without_time().init();
+    tracing_subscriber::fmt()
+        .with_max_level(Level::INFO)
+        .pretty()
+        .init();
 
-    let etcd = Client::connect(
-        cli.etcd,
-        Some(
-            ConnectOptions::new()
-                .with_connect_timeout(Duration::from_secs(3))
-                .with_timeout(Duration::from_secs(3)),
-        ),
-    )
-    .await
-    .unwrap();
+    let client = Client::connect(args.etcd).await.unwrap();
+    let api_handle = api::run(args.listen, client.clone());
 
-    tokio::join!(
-        api::run(cli.listen, &cli.name, etcd.clone()),
-        worker::run(cli.workers, &cli.name, etcd.clone())
-    );
+    if let Some(workers) = NonZeroUsize::new(args.workers) {
+        tokio::select! {
+            result = api_handle => {
+                tracing::warn!("API exited unexpectedly!");
+                result
+            },
+            result = worker::run(workers, client.clone()) =>  {
+                tracing::warn!("Worker exited unexpectedly!");
+                result
+            }
+        }
+    } else {
+        let result = api_handle.await;
+        tracing::warn!("API exited unexpectedly!");
+        return result;
+    }
 }
