@@ -1,8 +1,7 @@
 use crate::client::BastiClient;
+use anyhow::Result;
 use basti_common::task::TaskState;
 use clap::Args;
-use colored::Colorize;
-use std::process;
 use tabled::{
     builder::Builder,
     settings::{object::Rows, Color, Style},
@@ -14,14 +13,8 @@ pub struct ListArgs {
     state: Option<TaskState>,
 }
 
-pub async fn list_command(args: ListArgs, client: BastiClient) {
-    let tasks = match client.list(args.state).await {
-        Ok(tasks) => tasks,
-        Err(error) => {
-            eprintln!("{} {}", "✖".red().bold(), error);
-            process::exit(1)
-        }
-    };
+pub async fn list_command(args: ListArgs, client: BastiClient) -> Result<()> {
+    let tasks = client.list(args.state).await?;
 
     let mut builder = Builder::new();
     builder.push_record([
@@ -56,6 +49,7 @@ pub async fn list_command(args: ListArgs, client: BastiClient) {
     table
         .with(Style::modern_rounded())
         .modify(Rows::first(), Color::BOLD);
+    eprintln!("{}", table);
 
-    eprintln!("{}", table)
+    Ok(())
 }

@@ -7,7 +7,10 @@ use crate::{
     list::{list_command, ListArgs},
     submit::{submit_command, SubmitArgs},
 };
+use anyhow::Result;
 use clap::{Parser, Subcommand};
+use colored::Colorize;
+use std::process;
 use url::Url;
 
 #[derive(Debug, Parser)]
@@ -35,11 +38,19 @@ enum Command {
 }
 
 #[tokio::main(flavor = "current_thread")]
-async fn main() {
+async fn main() -> Result<()> {
     let cli = Cli::parse();
-    let basti = BastiClient::new(cli.cluster);
-    match cli.command {
+    let basti = BastiClient::new(cli.cluster)?;
+
+    let result = match cli.command {
         Command::Submit(args) => submit_command(args, basti).await,
         Command::List(args) => list_command(args, basti).await,
     };
+
+    if let Err(error) = result {
+        eprintln!("{} {}", "✖".red().bold(), error);
+        process::exit(1);
+    }
+
+    Ok(())
 }
