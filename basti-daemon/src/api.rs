@@ -1,4 +1,4 @@
-use crate::client::Client;
+use crate::ops::{create_task, list_tasks};
 use anyhow::Context;
 use axum::{
     extract::{Json, Query, State},
@@ -8,7 +8,7 @@ use axum::{
     Router,
 };
 use basti_common::task::{CreateTaskPayload, Task, TaskState};
-use etcd_client::{GetOptions, SortOrder, SortTarget};
+use etcd_client::{Client, GetOptions, SortOrder, SortTarget};
 use serde::Deserialize;
 use std::{
     fmt::{Debug, Display},
@@ -53,8 +53,8 @@ pub async fn run(addr: SocketAddr, client: Client) -> anyhow::Result<()> {
         .on_failure(DefaultOnFailure::new().level(Level::WARN));
 
     let app = Router::new()
-        .route("/api/tasks", get(list_tasks))
-        .route("/api/tasks", post(create_task))
+        .route("/api/tasks", get(list_tasks_endpoint))
+        .route("/api/tasks", post(create_task_endpoint))
         .layer(trace_layer)
         .with_state(client);
 
@@ -69,12 +69,11 @@ pub async fn run(addr: SocketAddr, client: Client) -> anyhow::Result<()> {
 }
 
 #[tracing::instrument(skip(client), err(Debug))]
-async fn create_task(
+async fn create_task_endpoint(
     State(mut client): State<Client>,
     Json(payload): Json<CreateTaskPayload>,
 ) -> ApiResult<Task> {
-    let task = client
-        .create_task(payload.duration, payload.priority)
+    let task = create_task(&mut client, payload.duration, payload.priority)
         .await
         .context("Failed to create task.")?;
 
@@ -88,20 +87,17 @@ struct ListTasksParams {
 }
 
 #[tracing::instrument(skip(client), err(Debug))]
-async fn list_tasks(
+async fn list_tasks_endpoint(
     State(mut client): State<Client>,
     Query(params): Query<ListTasksParams>,
 ) -> ApiResult<Vec<Task>> {
-    let tasks = client
-        .list_tasks(
-            params.state,
-            GetOptions::default().with_sort(SortTarget::Mod, SortOrder::Descend),
-        )
-        .await
-        .context("Failed to list tasks.")?;
+    let tasks = list_tasks(
+        &mut client,
+        params.state,
+        Some(GetOptions::default().with_sort(SortTarget::Mod, SortOrder::Descend)),
+    )
+    .await
+    .context("Failed to list tasks.")?;
 
-    Ok((
-        StatusCode::OK,
-        Json(tasks.into_iter().map(|(task, _)| task).collect()),
-    ))
+    Ok((StatusCode::OK, Json(tasks)))
 }

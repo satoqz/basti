@@ -1,11 +1,11 @@
 mod api;
-mod client;
+mod ops;
 mod worker;
 
-use crate::client::Client;
 use anyhow::{bail, Result};
 use clap::Parser;
-use std::{net::SocketAddr, num::NonZeroUsize};
+use etcd_client::{Client, ConnectOptions};
+use std::{net::SocketAddr, num::NonZeroUsize, time::Duration};
 use tracing::Level;
 use url::Url;
 
@@ -42,13 +42,22 @@ async fn main() -> Result<()> {
         .pretty()
         .init();
 
-    let client = Client::connect(args.name, args.etcd).await?;
+    let client = Client::connect(
+        args.etcd,
+        Some(
+            ConnectOptions::default()
+                .with_connect_timeout(Duration::from_secs(2))
+                .with_timeout(Duration::from_secs(2)),
+        ),
+    )
+    .await?;
+
     let api_handle = api::run(args.listen, client.clone());
 
     if let Some(workers) = NonZeroUsize::new(args.workers) {
         tokio::select! {
             result = api_handle => result,
-            _ = worker::run(workers, client.clone()) =>  bail!("Worker exited unexpectedly.")
+            _ = worker::run(workers, client, args.name) =>  bail!("Worker exited unexpectedly.")
         }
     } else {
         api_handle.await

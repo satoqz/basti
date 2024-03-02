@@ -1,11 +1,13 @@
-use crate::client::Client;
+use crate::ops::{acquire_task, list_tasks};
 use anyhow::Result;
 use async_channel::{Receiver, Sender};
-use basti_common::task::Task;
+use basti_common::task::{Task, TaskState};
+use etcd_client::Client;
 use std::{num::NonZeroUsize, time::Duration};
 use tokio::{task::JoinSet, time::sleep};
 
-pub async fn run(amount: NonZeroUsize, client: Client) {
+#[tracing::instrument(skip_all)]
+pub async fn run(amount: NonZeroUsize, client: Client, node_name: String) {
     let mut join_set = JoinSet::new();
     let (sender, receiver) = async_channel::bounded(1);
 
@@ -17,31 +19,68 @@ pub async fn run(amount: NonZeroUsize, client: Client) {
 
     let feed_task = async {
         loop {
-            let Ok(client) = client.new_connection().await else {
-                continue;
-            };
-
-            let Ok(()) = feed_workers(client, &sender).await else {
-                continue;
+            match feed_workers(client.clone(), &sender, node_name.clone()).await {
+                Ok(_) => sleep(Duration::from_secs(1)).await,
+                Err(_) => {
+                    tracing::warn!("Failed to feed workers, waiting 5 seconds...");
+                    sleep(Duration::from_secs(5)).await;
+                }
             };
         }
     };
 
-    let requeue_task = async { &client };
+    let requeue_task = async {
+        loop {
+            match requeue_tasks(client.clone()).await {
+                Ok(_) => sleep(Duration::from_secs(1)).await,
+                Err(_) => {
+                    tracing::warn!("Failed to requeue tasks, waiting 5 seconds...");
+                    sleep(Duration::from_secs(5)).await;
+                }
+            };
+        }
+    };
 
     tokio::join!(feed_task, requeue_task);
 }
 
-async fn feed_workers(mut client: Client, sender: &Sender<Task>) -> Result<()> {
-    let (_, mut stream) = client.watch("task_queued_", None).await?;
+#[tracing::instrument(skip_all, err(Debug))]
+async fn feed_workers(mut client: Client, sender: &Sender<Task>, node_name: String) -> Result<()> {
+    'outer: loop {
+        let mut tasks = list_tasks(&mut client, Some(TaskState::Queued), None).await?;
+
+        if tasks.is_empty() {
+            break;
+        }
+
+        tasks.sort_unstable_by_key(|task| task.details.priority);
+
+        for task in tasks.iter().rev() {
+            if let Ok(task) = acquire_task(&mut client, &task.key, node_name.clone()).await {
+                tracing::info!("Acquired task {}.", task.key.id);
+                sender.send(task).await?;
+                break 'outer;
+            }
+        }
+    }
+
     Ok(())
 }
 
 async fn worker(mut client: Client, receiver: Receiver<Task>) {
     while let Ok(task) = receiver.recv().await {
-        dbg!(task);
-        sleep(Duration::from_secs(60)).await;
+        const ONE_SECOND: Duration = Duration::from_secs(1);
+
+        if task.details.duration.is_zero() {
+            // client.delete(task.key.to_string(), None).await
+        }
     }
+}
+
+#[tracing::instrument(skip_all, err(Debug))]
+async fn requeue_tasks(mut client: Client) -> Result<()> {
+    list_tasks(&mut client, None, None).await?;
+    Ok(())
 }
 
 // async fn requeue_tasks(etcd: &mut Client, worker_name: &str) -> Result<()> {
