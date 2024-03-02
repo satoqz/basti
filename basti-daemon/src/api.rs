@@ -1,6 +1,7 @@
 use axum::{
-    extract::{Json, Query, State},
-    http::StatusCode,
+    extract::{Json, Query, Request, State},
+    http::{HeaderValue, StatusCode},
+    middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{get, post},
     Router,
@@ -48,11 +49,20 @@ impl IntoResponse for Error {
 
 type HandlerResult<T> = Result<T, Error>;
 
-pub async fn run(addr: SocketAddr, etcd: Client) {
+pub async fn run(addr: SocketAddr, name: String, etcd: Client) {
+    let name_header = HeaderValue::from_str(&name.to_ascii_lowercase()).unwrap();
     let app = Router::new()
         .route("/api/tasks", get(list_tasks))
         .route("/api/tasks", post(create_task))
-        .with_state(etcd);
+        .with_state(etcd)
+        .layer(middleware::from_fn(move |req: Request, next: Next| {
+            let name_header = name_header.clone();
+            async move {
+                let mut res = next.run(req).await;
+                res.headers_mut().insert("x-served-by", name_header);
+                res
+            }
+        }));
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     tracing::info!("listening at {addr}");

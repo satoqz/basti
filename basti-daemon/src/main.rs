@@ -15,14 +15,19 @@ struct Cli {
         help = "Comma-separated list of etcd endpoints"
     )]
     etcd: Vec<Url>,
+
     #[clap(
         long,
         default_value = "127.0.0.1:1337",
         help = "API endpoint to listen on"
     )]
     listen: SocketAddr,
+
     #[clap(long, default_value = "3", help = "Number of workers to run")]
     workers: usize,
+
+    #[clap(long, required = true, help = "Name of the node")]
+    name: String,
 }
 
 #[tokio::main]
@@ -43,7 +48,7 @@ async fn main() {
     .unwrap();
 
     tokio::join!(
-        api::run(cli.listen, etcd.clone()),
+        api::run(cli.listen, cli.name, etcd.clone()),
         worker::run(cli.workers, etcd.clone())
     );
 }
