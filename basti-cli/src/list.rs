@@ -10,8 +10,7 @@ use tabled::{
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
-    /// Task state to filter by
-    #[clap(long, required = false)]
+    #[clap(long, required = false, help = "Task state to filter by")]
     filter: Option<TaskState>,
 }
 

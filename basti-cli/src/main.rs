@@ -15,13 +15,13 @@ struct Cli {
     #[command(subcommand)]
     command: Command,
 
-    /// Comma-separated list of cluster endpoints
     #[clap(
         long,
         short,
         required = true,
         use_value_delimiter = true,
-        env = "BASTI_CLUSTER"
+        env = "BASTI_CLUSTER",
+        help = "Comma-separeted list of cluster endpoints"
     )]
     cluster: Vec<Url>,
 }

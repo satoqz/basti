@@ -5,14 +5,21 @@ use std::{process, time::Duration};
 
 #[derive(Debug, Args)]
 pub struct SubmitArgs {
-    /// Task priority, higher = higher priority, 0 = lowest priority
-    #[clap(long, default_value = "0")]
+    #[clap(
+        long,
+        default_value = "0",
+        help = "Task priority, higher = higher priority, 0 = lowest priority"
+    )]
     priority: u32,
-    /// Task duration in seconds
-    #[clap(long, default_value = "0")]
+
+    #[clap(long, default_value = "0", help = "Task duration in seconds")]
     seconds: u64,
-    /// Additional task duration in milliseconds
-    #[clap(long, default_value = "0")]
+
+    #[clap(
+        long,
+        default_value = "0",
+        help = "Additional task duration in milliseconds"
+    )]
     millis: u64,
 }
 
