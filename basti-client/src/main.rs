@@ -20,8 +20,7 @@ struct Cli {
 
     #[clap(
         long,
-        short,
-        required = true,
+        default_value = "http://127.0.0.1:1337",
         use_value_delimiter = true,
         env = "BASTI_CLUSTER",
         help = "Comma-separeted list of cluster endpoints"

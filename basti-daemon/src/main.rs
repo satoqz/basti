@@ -13,7 +13,7 @@ use url::Url;
 struct Cli {
     #[clap(
         long,
-        required = true,
+        default_value = "http://127.0.0.1:2379",
         use_value_delimiter = true,
         help = "Comma-separated list of etcd endpoints"
     )]
