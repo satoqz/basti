@@ -1,11 +1,9 @@
 mod client;
-mod list;
-mod submit;
+mod commands;
 
 use crate::{
     client::BastiClient,
-    list::{list_command, ListArgs},
-    submit::{submit_command, SubmitArgs},
+    commands::{list_command, submit_command, ListArgs, SubmitArgs},
 };
 use anyhow::Result;
 use clap::{Parser, Subcommand};
