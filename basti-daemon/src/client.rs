@@ -1,6 +1,9 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use basti_common::task::{Task, TaskKey, TaskState};
-use etcd_client::{Client as EtcdClient, ConnectOptions, GetOptions};
+use chrono::Utc;
+use etcd_client::{
+    Client as EtcdClient, Compare, CompareOp, ConnectOptions, GetOptions, Txn, TxnOp,
+};
 use std::{
     ops::{Deref, DerefMut},
     str::FromStr,
@@ -12,6 +15,7 @@ use url::Url;
 pub struct Client {
     etcd: EtcdClient,
     endpoints: Vec<Url>,
+    name: String,
 }
 
 impl Deref for Client {
@@ -28,7 +32,8 @@ impl DerefMut for Client {
 }
 
 impl Client {
-    pub async fn connect(endpoints: Vec<Url>) -> Result<Self> {
+    #[tracing::instrument(err(Debug))]
+    pub async fn connect(name: String, endpoints: Vec<Url>) -> Result<Self> {
         let etcd = EtcdClient::connect(
             &endpoints,
             Some(
@@ -38,21 +43,29 @@ impl Client {
             ),
         )
         .await?;
-        Ok(Self { etcd, endpoints })
+
+        Ok(Self {
+            etcd,
+            name,
+            endpoints,
+        })
     }
 
+    #[tracing::instrument(skip(self), err(Debug))]
     pub async fn new_connection(&self) -> Result<Self> {
-        Self::connect(self.endpoints.clone()).await
+        Self::connect(self.name.clone(), self.endpoints.clone()).await
     }
 
+    #[tracing::instrument(skip(self), err(Debug))]
     pub async fn create_task(&mut self, duration: Duration, priority: u32) -> Result<Task> {
         let task = Task::generate(priority, duration);
-        self.put(task.key.to_string(), serde_json::to_string(&task)?, None)
+        self.put(task.key.to_string(), serde_json::to_vec(&task)?, None)
             .await?;
 
         Ok(task)
     }
 
+    #[tracing::instrument(skip(self), err(Debug))]
     pub async fn list_tasks(
         &mut self,
         state: Option<TaskState>,
@@ -78,5 +91,51 @@ impl Client {
         }
 
         Ok(tasks)
+    }
+
+    #[tracing::instrument(skip(self), err(Debug))]
+    pub async fn acquire_task(&mut self, key: &TaskKey) -> Result<Task> {
+        match key.state {
+            TaskState::Queued => {}
+            _ => bail!("Cannot acquire task that is not queued."),
+        }
+
+        let (mut task, revision) = {
+            let response = self.get(key.to_string(), None).await?;
+
+            let kv = match response.kvs() {
+                [] => bail!("No queued task found."),
+                [kv] => kv,
+                _ => bail!("Multiple tasks found for key."),
+            };
+
+            let task = Task {
+                key: TaskKey::from_str(kv.key_str()?)?,
+                details: serde_json::from_str(kv.value_str()?)?,
+            };
+
+            (task, kv.mod_revision())
+        };
+
+        task.key.state = TaskState::Running;
+        task.details.assignee = Some(self.name.clone());
+        task.details.last_update = Utc::now();
+
+        let txn = Txn::new()
+            .when([Compare::mod_revision(
+                key.to_string(),
+                CompareOp::Equal,
+                revision,
+            )])
+            .and_then([
+                TxnOp::delete(key.to_string(), None),
+                TxnOp::put(task.key.to_string(), serde_json::to_vec(&task)?, None),
+            ]);
+
+        if !self.txn(txn).await?.succeeded() {
+            bail!("Transaction failed.")
+        }
+
+        Ok(task)
     }
 }

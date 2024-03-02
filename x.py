@@ -161,6 +161,7 @@ def start_cmd(
                 f"--workers={BASTID_WORKERS}",
                 f"--listen=0.0.0.0:{BASTID_PORT}",
                 f"--etcd={etcd_cluster_string}",
+                f"--name={node}",
             ],
             "etcd": lambda: [
                 f"--name={node}",
