@@ -107,6 +107,5 @@ async fn list_tasks(
         });
     }
 
-    tracing::info!("listing {} tasks", tasks.len());
     Ok((StatusCode::OK, Json(tasks)))
 }
