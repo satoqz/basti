@@ -112,10 +112,10 @@ def start_cmd(
     no_build: bool,
     no_stop: bool,
 ) -> None:
-    if not no_stop:
-        ctx.invoke(stop_cmd, service=service, group=group)
     if deploy:
         ctx.invoke(deploy_cmd, service=service, group=group, no_build=no_build)
+    if not no_stop:
+        ctx.invoke(stop_cmd, service=service, group=group)
 
     container_image = {
         "bastid": BASTID_IMAGE_TAG,
