@@ -9,7 +9,7 @@ path = "src/main.rs"
 
 [dependencies]
 basti-common = { path = "../basti-common" }
-clap.workspace = true
+clap = { workspace = true, features = ["env"] }
 reqwest.workspace = true
 tokio.workspace = true
 url.workspace = true

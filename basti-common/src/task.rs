@@ -1,3 +1,4 @@
+use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, str::FromStr, time::Duration};
 use uuid::Uuid;
@@ -16,7 +17,7 @@ pub struct TaskKey {
     pub state: TaskState,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ValueEnum)]
 #[serde(rename_all = "lowercase")]
 pub enum TaskState {
     Queued,
@@ -112,20 +113,9 @@ impl FromStr for TaskKey {
             return Err(Error::MalformedKey);
         }
 
-        let state = TaskState::from_str(parts[1])?;
+        let state = TaskState::from_str(parts[1], false).map_err(|_| Error::UnknownState)?;
         let id = Uuid::from_str(parts[2]).map_err(|_| Error::MalformedKey)?;
 
         Ok(Self { id, state })
-    }
-}
-
-impl FromStr for TaskState {
-    type Err = Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "queued" => Ok(Self::Queued),
-            "running" => Ok(Self::Running),
-            _ => Err(Error::UnknownState),
-        }
     }
 }
