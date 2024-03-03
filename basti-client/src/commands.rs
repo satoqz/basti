@@ -40,7 +40,7 @@ pub async fn submit_command(args: SubmitArgs, client: BastiClient) -> Result<()>
         )
         .await?;
 
-    eprintln!(
+    println!(
         "{} Created task {}",
         "✓".green().bold(),
         task.key.id.to_string().bright_black().italic()
@@ -71,13 +71,12 @@ pub async fn list_command(args: ListArgs, client: BastiClient) -> Result<()> {
     ]);
 
     for task in tasks {
-        const FULL_PROGRESS: usize = 8;
         let progress = if task.details.duration.as_secs() == 0 {
-            FULL_PROGRESS
+            0
         } else {
             (((task.details.duration - task.details.remaining).as_secs_f32()
                 / task.details.duration.as_secs_f32())
-                * FULL_PROGRESS as f32) as usize
+                * 8 as f32) as usize
         };
 
         builder.push_record([
@@ -104,7 +103,7 @@ pub async fn list_command(args: ListArgs, client: BastiClient) -> Result<()> {
         .with(Style::modern_rounded())
         .modify(Columns::last(), Color::FG_GREEN)
         .modify(Rows::first(), Color::FG_WHITE | Color::BOLD);
-    eprintln!("{}", table);
+    println!("{}", table);
 
     Ok(())
 }
