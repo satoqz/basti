@@ -225,7 +225,17 @@ def logs_cmd(service: str, node: str, group: str, follow: bool) -> None:
 @click.argument("args", type=str, nargs=-1)
 @click.option("--group", "-g", type=str, default=INVENTORY["default_group"])
 def ssh_cmd(node: str, args: list[str], group: str) -> None:
-    subprocess.run(["ssh", "-t", INVENTORY[group][node]["ssh"], " ".join(args)])
+    subprocess.run(
+        [
+            "ssh",
+            "-t",
+            "--",
+            INVENTORY[group][node]["ssh"],
+            "sudo",
+            *(["-i"] if len(args) < 1 else []),
+            *args,
+        ]
+    )
 
 
 if __name__ == "__main__":
