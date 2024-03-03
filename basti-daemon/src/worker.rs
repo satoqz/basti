@@ -110,7 +110,7 @@ async fn feed_workers(
 
         tasks.sort_by(|(a, _), (b, _)| a.details.cmp(&b.details));
 
-        for (task, revision) in tasks.into_iter().rev() {
+        for (task, revision) in tasks.into_iter() {
             let task_id = task.key.id.clone();
             tracing::info!("Trying to acquire task {task_id}");
             match acquire_task(client, task, revision, node_name.clone()).await {
