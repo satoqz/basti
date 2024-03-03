@@ -2,7 +2,7 @@ use anyhow::{bail, Error};
 use std::{fmt::Display, str::FromStr};
 use uuid::Uuid;
 
-pub struct PointerKey(Uuid);
+pub struct PointerKey(pub Uuid);
 
 impl PointerKey {
     pub fn prefix() -> &'static str {
