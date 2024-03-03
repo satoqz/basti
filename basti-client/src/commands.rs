@@ -77,6 +77,20 @@ pub struct CancelArgs {
 }
 
 pub async fn cancel_command(args: CancelArgs, client: BastiClient) -> Result<()> {
+    let task_results =
+        futures::future::join_all(args.ids.compact().into_iter().map(|id| client.cancel(id))).await;
+
+    for result in task_results {
+        match result {
+            Ok(task) => println!(
+                "{} Canceled task {}",
+                "✓".green().bold(),
+                task.key.id.to_string().bright_black().italic()
+            ),
+            Err(error) => println!("{} {}", "✖".red().bold(), error),
+        }
+    }
+
     Ok(())
 }
 

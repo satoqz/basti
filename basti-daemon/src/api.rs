@@ -3,7 +3,7 @@ use anyhow::{anyhow, Context};
 use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
-    routing::{get, post},
+    routing::{delete, get, post},
     Router,
 };
 use basti_common::task::{CreateTaskPayload, Task, TaskState};
@@ -25,6 +25,7 @@ pub async fn run(addr: SocketAddr, client: Client) -> anyhow::Result<()> {
         .route("/api/tasks", post(create_task_endpoint))
         .route("/api/tasks", get(list_tasks_endpoint))
         .route("/api/tasks/:id", get(find_task_endpoint))
+        .route("/api/tasks/:id", delete(cancel_task_endpoint))
         .layer(trace_layer)
         .with_state(client);
 
@@ -75,11 +76,31 @@ async fn find_task_endpoint(
     State(mut client): State<Client>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Task> {
-    match find_task_by_id(&mut client, id).await? {
+    match find_task(&mut client, id)
+        .await
+        .context(format!("Failed to find task {id}"))?
+    {
         Some(task) => Ok((StatusCode::OK, Json(task))),
         None => Err(ApiError {
             kind: ApiErrorKind::NotFound,
-            inner: anyhow!("Task does not exist"),
+            inner: anyhow!("Task {id} does not exist"),
+        }),
+    }
+}
+
+#[tracing::instrument(skip(client), err(Debug))]
+async fn cancel_task_endpoint(
+    State(mut client): State<Client>,
+    Path(id): Path<Uuid>,
+) -> ApiResult<Task> {
+    match cancel_task(&mut client, id)
+        .await
+        .context(format!("Failed to cancel task {id}"))?
+    {
+        Some(task) => Ok((StatusCode::OK, Json(task))),
+        None => Err(ApiError {
+            kind: ApiErrorKind::NotFound,
+            inner: anyhow!("Task {id} does not exist"),
         }),
     }
 }

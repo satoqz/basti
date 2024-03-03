@@ -53,7 +53,7 @@ async fn main() -> Result<()> {
     };
 
     if let Err(error) = result {
-        eprintln!("{} {}", "✖".red().bold(), error);
+        println!("{} {}", "✖".red().bold(), error);
         process::exit(1);
     }
 

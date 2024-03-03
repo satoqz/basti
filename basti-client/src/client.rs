@@ -76,4 +76,13 @@ impl BastiClient {
         })
         .await
     }
+
+    pub async fn cancel(&self, id: Uuid) -> Result<Task> {
+        let path = format!("/api/tasks/{id}");
+        self.execute::<Task, _>(|mut url| {
+            url.set_path(&path);
+            self.http_client.request(Method::DELETE, url)
+        })
+        .await
+    }
 }

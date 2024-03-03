@@ -46,7 +46,7 @@ pub async fn list_tasks(
     Ok(tasks)
 }
 
-pub async fn find_task_by_id(client: &mut Client, id: Uuid) -> Result<Option<Task>> {
+pub async fn find_task(client: &mut Client, id: Uuid) -> Result<Option<Task>> {
     let txn = Txn::new().and_then(
         TaskState::value_variants()
             .into_iter()
@@ -73,6 +73,26 @@ pub async fn find_task_by_id(client: &mut Client, id: Uuid) -> Result<Option<Tas
         key: TaskKey::from_str(kv.key_str()?)?,
         details: serde_json::from_str(kv.value_str()?)?,
     };
+
+    Ok(Some(task))
+}
+
+pub async fn cancel_task(client: &mut Client, id: Uuid) -> Result<Option<Task>> {
+    let Some(task) = find_task(client, id).await? else {
+        return Ok(None);
+    };
+
+    let txn = Txn::new().and_then(
+        TaskState::value_variants()
+            .into_iter()
+            .map(|state| TxnOp::delete(format!("task_{state}_{id}"), None))
+            .collect::<Vec<_>>(),
+    );
+
+    let response = client.txn(txn).await?;
+    if !response.succeeded() {
+        bail!("Transaction failed")
+    }
 
     Ok(Some(task))
 }
