@@ -4,7 +4,7 @@ use crate::ops::{
 };
 use anyhow::Result;
 use async_channel::{Receiver, Sender};
-use basti_common::task::*;
+use basti_task::{Task, TaskState};
 use chrono::{TimeDelta, Utc};
 use etcd_client::{GetOptions, KvClient, SortOrder, SortTarget};
 use std::{num::NonZeroUsize, sync::Arc, time::Duration};

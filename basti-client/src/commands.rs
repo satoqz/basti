@@ -1,6 +1,6 @@
 use crate::{client::BastiClient, table::print_task_table, util::Compact};
 use anyhow::Result;
-use basti_common::task::{TaskPriority, TaskState};
+use basti_task::{TaskPriority, TaskState};
 use clap::Args;
 use colored::Colorize;
 use std::time::Duration;

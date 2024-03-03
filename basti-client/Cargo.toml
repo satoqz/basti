@@ -9,7 +9,7 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow.workspace = true
-basti-common = { path = "../basti-common" }
+basti-task = { path = "../basti-task" }
 clap = { workspace = true, features = ["env"] }
 colored.workspace = true
 futures.workspace = true

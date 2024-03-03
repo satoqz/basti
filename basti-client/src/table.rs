@@ -1,4 +1,4 @@
-use basti_common::task::Task;
+use basti_task::Task;
 use tabled::{
     builder::Builder,
     settings::{

@@ -1,9 +1,5 @@
 use anyhow::{bail, Result};
-use basti_common::{
-    pointer::PointerKey,
-    task::{Task, TaskKey, TaskState},
-};
-use clap::ValueEnum;
+use basti_task::{Task, TaskKey, TaskState};
 use etcd_client::{KvClient, Txn, TxnOp, TxnOpResponse};
 use std::str::FromStr;
 use uuid::Uuid;

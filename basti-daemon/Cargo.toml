@@ -11,7 +11,7 @@ path = "src/main.rs"
 anyhow.workspace = true
 async-channel.workspace = true
 axum.workspace = true
-basti-common = { path = "../basti-common" }
+basti-task = { path = "../basti-task" }
 chrono.workspace = true
 clap.workspace = true
 etcd-client.workspace = true

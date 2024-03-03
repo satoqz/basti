@@ -1,6 +1,6 @@
-use super::revision_based::try_update_task_with_transaction;
+use super::revision_based::try_update_task;
 use anyhow::Result;
-use basti_common::task::{Task, TaskKey, TaskState};
+use basti_task::{Task, TaskKey, TaskPriority, TaskState};
 use etcd_client::{GetOptions, KvClient, TxnOp};
 use std::{str::FromStr, time::Duration};
 
@@ -35,11 +35,11 @@ pub async fn list_tasks(
 pub async fn create_task(
     client: &mut KvClient,
     duration: Duration,
-    priority: u8,
+    priority: TaskPriority,
 ) -> Result<(Task, i64)> {
-    let task = Task::new(priority, duration);
+    let task = Task::generate(priority, duration);
 
-    let revision = try_update_task_with_transaction(
+    let revision = try_update_task(
         client,
         &task,
         &task.key,

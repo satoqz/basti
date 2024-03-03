@@ -1,14 +1,11 @@
 use std::time::Duration;
 
 use anyhow::{bail, Result};
-use basti_common::{
-    pointer::PointerKey,
-    task::{Task, TaskKey, TaskState},
-};
+use basti_task::{Task, TaskKey, TaskState};
 use chrono::Utc;
 use etcd_client::{Compare, CompareOp, KvClient, Txn, TxnOp, TxnOpResponse};
 
-pub async fn try_update_task_with_transaction<V>(
+pub async fn try_update_task<V>(
     client: &mut KvClient,
     task: &Task,
     initial_key: &TaskKey,
@@ -66,7 +63,7 @@ pub async fn try_acquire_task(
     task.value.assignee = Some(node_name);
     task.value.last_update = Utc::now();
 
-    let revision = try_update_task_with_transaction(
+    let revision = try_update_task(
         client,
         &task,
         &initial_key,
@@ -90,7 +87,7 @@ pub async fn try_progress_task(
     task.value.remaining -= progress;
     task.value.last_update = Utc::now();
 
-    let revision = try_update_task_with_transaction(
+    let revision = try_update_task(
         client,
         &task,
         &task.key,
@@ -117,7 +114,7 @@ pub async fn try_requeue_task(
     task.value.assignee = None;
     task.value.last_update = Utc::now();
 
-    let revision = try_update_task_with_transaction(
+    let revision = try_update_task(
         client,
         &task,
         &initial_key,

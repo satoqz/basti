@@ -12,10 +12,7 @@ use axum::{
     routing::{delete, get, post},
     Router,
 };
-use basti_common::{
-    payload::CreateTask,
-    task::{Task, TaskState},
-};
+use basti_task::{CreateTask, Task, TaskState};
 use etcd_client::{GetOptions, KvClient};
 use serde::Deserialize;
 use std::{fmt::Debug, net::SocketAddr};
