@@ -83,7 +83,7 @@ impl TaskDetails {
 
 impl Display for TaskKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "task_{}_{}_{}", self.state, self.priority, self.id)
+        write!(f, "task_{}_{:03}_{}", self.state, self.priority, self.id)
     }
 }
 
