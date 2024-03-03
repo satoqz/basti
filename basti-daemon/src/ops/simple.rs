@@ -1,11 +1,11 @@
 use super::revision_based::try_update_task_with_transaction;
 use anyhow::Result;
 use basti_common::task::{Task, TaskKey, TaskState};
-use etcd_client::{Client, GetOptions, TxnOp};
+use etcd_client::{GetOptions, KvClient, TxnOp};
 use std::{str::FromStr, time::Duration};
 
 pub async fn list_tasks(
-    client: &mut Client,
+    client: &mut KvClient,
     state: Option<TaskState>,
     options: Option<GetOptions>,
 ) -> Result<Vec<(Task, i64)>> {
@@ -15,10 +15,7 @@ pub async fn list_tasks(
     };
 
     let response = client
-        .get(
-            key,
-            Some(options.unwrap_or(GetOptions::default()).with_prefix()),
-        )
+        .get(key, Some(options.unwrap_or_default().with_prefix()))
         .await?;
 
     let mut tasks = Vec::new();
@@ -36,7 +33,7 @@ pub async fn list_tasks(
 }
 
 pub async fn create_task(
-    client: &mut Client,
+    client: &mut KvClient,
     duration: Duration,
     priority: u8,
 ) -> Result<(Task, i64)> {

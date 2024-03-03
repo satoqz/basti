@@ -6,12 +6,12 @@ use anyhow::Result;
 use async_channel::{Receiver, Sender};
 use basti_common::task::*;
 use chrono::Utc;
-use etcd_client::{Client, GetOptions, SortOrder, SortTarget};
+use etcd_client::{GetOptions, KvClient, SortOrder, SortTarget};
 use std::{num::NonZeroUsize, sync::Arc, time::Duration};
 use tokio::{sync::Semaphore, task::JoinSet, time::sleep};
 
 #[tracing::instrument(skip_all)]
-pub async fn run_detached(amount: NonZeroUsize, client: Client, node_name: String) {
+pub async fn run_detached(amount: NonZeroUsize, client: KvClient, node_name: String) {
     let mut join_set = JoinSet::new();
     let semaphore = Arc::new(Semaphore::new(amount.get()));
     let (sender, receiver) = async_channel::bounded(1);
@@ -23,8 +23,8 @@ pub async fn run_detached(amount: NonZeroUsize, client: Client, node_name: Strin
         join_set.spawn(async move {
             while let Ok((task, revision)) = receiver.recv().await {
                 let _permit = semaphore.acquire().await.unwrap();
-                let task_id = task.key.id.clone();
-                if let Err(_) = work_on_task(&mut client, task, revision).await {
+                let task_id = task.key.id;
+                if work_on_task(&mut client, task, revision).await.is_err() {
                     tracing::warn!("Lost work on task {task_id}")
                 }
             }
@@ -64,7 +64,7 @@ pub async fn run_detached(amount: NonZeroUsize, client: Client, node_name: Strin
 }
 
 #[tracing::instrument(skip_all, err(Debug))]
-async fn work_on_task(client: &mut Client, mut task: Task, mut revision: i64) -> Result<()> {
+async fn work_on_task(client: &mut KvClient, mut task: Task, mut revision: i64) -> Result<()> {
     while !task.value.remaining.is_zero() {
         const ONE_SECOND: Duration = Duration::from_secs(1);
 
@@ -100,7 +100,7 @@ async fn work_on_task(client: &mut Client, mut task: Task, mut revision: i64) ->
 
 #[tracing::instrument(skip_all, err(Debug))]
 async fn feed_workers(
-    client: &mut Client,
+    client: &mut KvClient,
     sender: &Sender<(Task, i64)>,
     node_name: String,
 ) -> Result<()> {
@@ -121,7 +121,7 @@ async fn feed_workers(
         }
 
         for (task, revision) in tasks.into_iter() {
-            let task_id = task.key.id.clone();
+            let task_id = task.key.id;
             tracing::info!("Trying to acquire task {task_id}");
             match try_acquire_task(client, task, revision, node_name.clone()).await {
                 Ok((task, revision)) => {
@@ -138,7 +138,7 @@ async fn feed_workers(
 }
 
 #[tracing::instrument(skip_all, err(Debug))]
-async fn requeue_tasks(client: &mut Client) -> Result<()> {
+async fn requeue_tasks(client: &mut KvClient) -> Result<()> {
     let now = Utc::now();
     let tasks = list_tasks(
         client,

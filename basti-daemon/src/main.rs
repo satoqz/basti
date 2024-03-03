@@ -51,7 +51,8 @@ async fn main() -> Result<()> {
                 .with_timeout(Duration::from_secs(2)),
         ),
     )
-    .await?;
+    .await?
+    .kv_client();
 
     if let Some(workers) = NonZeroUsize::new(args.workers) {
         worker::run_detached(workers, client.clone(), args.name).await;

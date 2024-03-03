@@ -4,11 +4,11 @@ use basti_common::{
     task::{Task, TaskKey, TaskState},
 };
 use clap::ValueEnum;
-use etcd_client::{Client, Txn, TxnOp, TxnOpResponse};
+use etcd_client::{KvClient, Txn, TxnOp, TxnOpResponse};
 use std::str::FromStr;
 use uuid::Uuid;
 
-async fn find_pointer(client: &mut Client, id: Uuid) -> Result<Option<(TaskKey, i64)>> {
+async fn find_pointer(client: &mut KvClient, id: Uuid) -> Result<Option<(TaskKey, i64)>> {
     let response = client.get(PointerKey(id).to_string(), None).await?;
 
     let Some(kv) = response.kvs().first() else {
@@ -21,10 +21,10 @@ async fn find_pointer(client: &mut Client, id: Uuid) -> Result<Option<(TaskKey, 
     )))
 }
 
-pub async fn find_task(client: &mut Client, id: Uuid) -> Result<Option<Task>> {
+pub async fn find_task(client: &mut KvClient, id: Uuid) -> Result<Option<Task>> {
     let txn = Txn::new().and_then(
         TaskState::value_variants()
-            .into_iter()
+            .iter()
             .map(|state| TxnOp::get(format!("task_{state}_{id}"), None))
             .collect::<Vec<_>>(),
     );
@@ -52,12 +52,10 @@ pub async fn find_task(client: &mut Client, id: Uuid) -> Result<Option<Task>> {
     Ok(Some(task))
 }
 
-pub async fn cancel_task(client: &mut Client, id: Uuid) -> Result<Option<Task>> {
+pub async fn cancel_task(client: &mut KvClient, id: Uuid) -> Result<Option<Task>> {
     let Some((_, revision)) = find_pointer(client, id).await? else {
         return Ok(None);
     };
-
-    try_finish_task(client, revision).await?;
 
     unimplemented!()
     // let Some(task) = find_task(client, id).await? else {

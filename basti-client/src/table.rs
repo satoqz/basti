@@ -27,7 +27,7 @@ pub fn print_task_table(mut tasks: Vec<Task>) {
         } else {
             (((task.value.duration - task.value.remaining).as_secs_f32()
                 / task.value.duration.as_secs_f32())
-                * 8 as f32) as usize
+                * 8_f32) as usize
         };
 
         builder.push_record([

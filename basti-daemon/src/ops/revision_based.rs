@@ -6,10 +6,10 @@ use basti_common::{
     task::{Task, TaskKey, TaskState},
 };
 use chrono::Utc;
-use etcd_client::{Client, Compare, CompareOp, Txn, TxnOp, TxnOpResponse};
+use etcd_client::{Compare, CompareOp, KvClient, Txn, TxnOp, TxnOpResponse};
 
 pub async fn try_update_task_with_transaction<V>(
-    client: &mut Client,
+    client: &mut KvClient,
     task: &Task,
     initial_key: &TaskKey,
     revision: Option<i64>,
@@ -55,7 +55,7 @@ where
 }
 
 pub async fn try_acquire_task(
-    client: &mut Client,
+    client: &mut KvClient,
     mut task: Task,
     revision: i64,
     node_name: String,
@@ -82,7 +82,7 @@ pub async fn try_acquire_task(
 }
 
 pub async fn try_progress_task(
-    client: &mut Client,
+    client: &mut KvClient,
     mut task: Task,
     revision: i64,
     progress: Duration,
@@ -107,7 +107,7 @@ pub async fn try_progress_task(
 }
 
 pub async fn try_requeue_task(
-    client: &mut Client,
+    client: &mut KvClient,
     mut task: Task,
     revision: i64,
 ) -> Result<(Task, i64)> {
@@ -132,7 +132,7 @@ pub async fn try_requeue_task(
     Ok((task, revision))
 }
 
-pub async fn try_finish_task(client: &mut Client, task: &Task, revision: i64) -> Result<()> {
+pub async fn try_finish_task(client: &mut KvClient, task: &Task, revision: i64) -> Result<()> {
     let txn = Txn::new()
         .when([Compare::mod_revision(
             task.key.to_string(),

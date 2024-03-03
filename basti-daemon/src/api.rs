@@ -16,7 +16,7 @@ use basti_common::{
     payload::CreateTask,
     task::{Task, TaskState},
 };
-use etcd_client::{Client, GetOptions};
+use etcd_client::{GetOptions, KvClient};
 use serde::Deserialize;
 use std::{fmt::Debug, net::SocketAddr};
 use tower_http::trace::{DefaultOnFailure, DefaultOnRequest, DefaultOnResponse, TraceLayer};
@@ -24,7 +24,7 @@ use tracing::Level;
 use uuid::Uuid;
 
 #[tracing::instrument(skip_all)]
-pub async fn run(addr: SocketAddr, client: Client) -> anyhow::Result<()> {
+pub async fn run(addr: SocketAddr, client: KvClient) -> anyhow::Result<()> {
     let trace_layer = TraceLayer::new_for_http()
         .on_request(DefaultOnRequest::new().level(Level::INFO))
         .on_response(DefaultOnResponse::new().level(Level::INFO))
@@ -50,7 +50,7 @@ pub async fn run(addr: SocketAddr, client: Client) -> anyhow::Result<()> {
 
 #[tracing::instrument(skip(client), err(Debug))]
 async fn create_task_endpoint(
-    State(mut client): State<Client>,
+    State(mut client): State<KvClient>,
     Json(payload): Json<CreateTask>,
 ) -> ApiResult<Task> {
     let (task, _) = create_task(&mut client, payload.duration, payload.priority)
@@ -68,7 +68,7 @@ struct ListTasksParams {
 
 #[tracing::instrument(skip(client), err(Debug))]
 async fn list_tasks_endpoint(
-    State(mut client): State<Client>,
+    State(mut client): State<KvClient>,
     Query(params): Query<ListTasksParams>,
 ) -> ApiResult<Vec<Task>> {
     let tasks = list_tasks(
@@ -87,7 +87,7 @@ async fn list_tasks_endpoint(
 
 #[tracing::instrument(skip(client), err(Debug))]
 async fn find_task_endpoint(
-    State(mut client): State<Client>,
+    State(mut client): State<KvClient>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Task> {
     match find_task(&mut client, id)
@@ -104,7 +104,7 @@ async fn find_task_endpoint(
 
 #[tracing::instrument(skip(client), err(Debug))]
 async fn cancel_task_endpoint(
-    State(mut client): State<Client>,
+    State(mut client): State<KvClient>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Task> {
     match cancel_task(&mut client, id)
