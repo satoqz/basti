@@ -1,11 +1,9 @@
 mod client;
 mod commands;
 mod table;
+mod util;
 
-use crate::{
-    client::BastiClient,
-    commands::{list_command, show_command, submit_command, ListArgs, ShowArgs, SubmitArgs},
-};
+use crate::{client::BastiClient, commands::*};
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
@@ -33,8 +31,12 @@ enum Command {
     Submit(SubmitArgs),
     /// List tasks
     List(ListArgs),
-    /// Show a specific task
+    /// Show specific tasks
     Show(ShowArgs),
+    /// Cancel tasks
+    Cancel(CancelArgs),
+    /// Wait for tasks to complete
+    Wait(WaitArgs),
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -46,6 +48,8 @@ async fn main() -> Result<()> {
         Command::Submit(args) => submit_command(args, basti).await,
         Command::List(args) => list_command(args, basti).await,
         Command::Show(args) => show_command(args, basti).await,
+        Command::Cancel(args) => cancel_command(args, basti).await,
+        Command::Wait(args) => wait_command(args, basti).await,
     };
 
     if let Err(error) = result {

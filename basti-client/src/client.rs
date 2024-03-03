@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use basti_common::task::{CreateTaskPayload, Task, TaskState};
+use basti_common::task::*;
 use reqwest::{Method, RequestBuilder};
 use serde::de::DeserializeOwned;
 use std::time::Duration;
@@ -70,7 +70,7 @@ impl BastiClient {
 
     pub async fn find(&self, id: Uuid) -> Result<Task> {
         let path = format!("/api/tasks/{id}");
-        self.execute(|mut url| {
+        self.execute::<Task, _>(|mut url| {
             url.set_path(&path);
             self.http_client.request(Method::GET, url)
         })

@@ -1,4 +1,4 @@
-use crate::{client::BastiClient, table::print_task_table};
+use crate::{client::BastiClient, table::print_task_table, util::Compact};
 use anyhow::Result;
 use basti_common::task::TaskState;
 use clap::Args;
@@ -57,12 +57,35 @@ pub async fn list_command(args: ListArgs, client: BastiClient) -> Result<()> {
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
-    #[clap(required = true, help = "Task id to find")]
-    id: Uuid,
+    #[clap(required = true, help = "Tasks to show")]
+    ids: Vec<Uuid>,
 }
 
 pub async fn show_command(args: ShowArgs, client: BastiClient) -> Result<()> {
-    let task = client.find(args.id).await?;
-    print_task_table(vec![task]);
+    let tasks = futures::future::join_all(args.ids.compact().into_iter().map(|id| client.find(id)))
+        .await
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()?;
+    print_task_table(tasks);
+    Ok(())
+}
+
+#[derive(Debug, Args)]
+pub struct CancelArgs {
+    #[clap(required = true, help = "Tasks to cancel")]
+    ids: Vec<Uuid>,
+}
+
+pub async fn cancel_command(args: CancelArgs, client: BastiClient) -> Result<()> {
+    Ok(())
+}
+
+#[derive(Debug, Args)]
+pub struct WaitArgs {
+    #[clap(required = true, help = "Tasks to wait for")]
+    ids: Vec<Uuid>,
+}
+
+pub async fn wait_command(args: WaitArgs, client: BastiClient) -> Result<()> {
     Ok(())
 }
