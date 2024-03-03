@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use basti_common::task::{Task, TaskKey, TaskState};
+use basti_common::task::*;
 use chrono::Utc;
 use clap::ValueEnum;
 use etcd_client::{Client, Compare, CompareOp, GetOptions, Txn, TxnOp, TxnOpResponse};
