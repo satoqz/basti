@@ -1,4 +1,10 @@
-use crate::{api_error::*, ops::*};
+use crate::{
+    api_error::{ApiError, ApiErrorKind, ApiResult},
+    ops::{
+        pointer_based::{cancel_task, find_task},
+        simple::{create_task, list_tasks},
+    },
+};
 use anyhow::{anyhow, Context};
 use axum::{
     extract::{Json, Path, Query, State},
@@ -47,7 +53,7 @@ async fn create_task_endpoint(
     State(mut client): State<Client>,
     Json(payload): Json<CreateTask>,
 ) -> ApiResult<Task> {
-    let task = create_task(&mut client, payload.duration, payload.priority)
+    let (task, _) = create_task(&mut client, payload.duration, payload.priority)
         .await
         .context("Failed to create task")?;
 

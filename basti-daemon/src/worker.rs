@@ -1,4 +1,7 @@
-use crate::ops::*;
+use crate::ops::{
+    revision_based::{try_acquire_task, try_finish_task, try_progress_task, try_requeue_task},
+    simple::list_tasks,
+};
 use anyhow::Result;
 use async_channel::{Receiver, Sender};
 use basti_common::task::*;
@@ -79,10 +82,10 @@ async fn work_on_task(client: &mut Client, mut task: Task, mut revision: i64) ->
         );
 
         sleep(work_duration).await;
-        (task, revision) = progress_task(client, task, revision, work_duration).await?;
+        (task, revision) = try_progress_task(client, task, revision, work_duration).await?;
     }
 
-    finish_task(client, &task, revision).await?;
+    try_finish_task(client, &task, revision).await?;
 
     let time_taken = (Utc::now() - task.value.created_at).to_std()?;
     tracing::info!(
@@ -120,7 +123,7 @@ async fn feed_workers(
         for (task, revision) in tasks.into_iter() {
             let task_id = task.key.id.clone();
             tracing::info!("Trying to acquire task {task_id}");
-            match acquire_task(client, task, revision, node_name.clone()).await {
+            match try_acquire_task(client, task, revision, node_name.clone()).await {
                 Ok((task, revision)) => {
                     tracing::info!("Acquired task {}.", task.key.id);
                     sender.send((task, revision)).await?;
@@ -152,7 +155,7 @@ async fn requeue_tasks(client: &mut Client) -> Result<()> {
         const TEN_SECONDS: Duration = Duration::from_secs(10);
         if (now - task.value.last_update).to_std()? > TEN_SECONDS {
             tracing::info!("Re-queueing task {}", task.key.id);
-            requeue_task(client, task, revision).await?;
+            try_requeue_task(client, task, revision).await?;
         }
     }
 
