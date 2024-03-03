@@ -128,7 +128,7 @@ impl Display for TaskState {
 
 impl Default for TaskPriority {
     fn default() -> Self {
-        Self(16)
+        Self(10)
     }
 }
 
