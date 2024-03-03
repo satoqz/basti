@@ -108,7 +108,7 @@ async fn feed_workers(
             break;
         }
 
-        tasks.sort_unstable_by(|(a, _), (b, _)| a.details.cmp(&b.details));
+        tasks.sort_by(|(a, _), (b, _)| a.details.cmp(&b.details));
 
         for (task, revision) in tasks.into_iter().rev() {
             let task_id = task.key.id.clone();
