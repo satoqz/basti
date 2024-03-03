@@ -6,7 +6,10 @@ use colored::Colorize;
 use std::time::Duration;
 use tabled::{
     builder::Builder,
-    settings::{object::Rows, Color, Style},
+    settings::{
+        object::{Columns, Rows},
+        Color, Style,
+    },
 };
 
 #[derive(Debug, Args)]
@@ -53,23 +56,35 @@ pub struct ListArgs {
 }
 
 pub async fn list_command(args: ListArgs, client: BastiClient) -> Result<()> {
-    let tasks = client.list(args.state).await?;
+    let mut tasks = client.list(args.state).await?;
+    tasks.sort_by(|a, b| a.details.cmp(&b.details));
 
     let mut builder = Builder::new();
     builder.push_record([
         "ID",
         "State",
         "Assignee",
+        "Priority",
         "Duration",
         "Remaining",
-        "Priority",
+        "Progress",
     ]);
 
     for task in tasks {
+        const FULL_PROGRESS: usize = 8;
+        let progress = if task.details.duration.as_secs() == 0 {
+            FULL_PROGRESS
+        } else {
+            (((task.details.duration - task.details.remaining).as_secs_f32()
+                / task.details.duration.as_secs_f32())
+                * FULL_PROGRESS as f32) as usize
+        };
+
         builder.push_record([
             task.key.id.to_string(),
             task.key.state.to_string(),
             task.details.assignee.unwrap_or("none".into()),
+            task.details.priority.to_string(),
             format!(
                 "{}.{:03}s",
                 task.details.duration.as_secs(),
@@ -80,14 +95,15 @@ pub async fn list_command(args: ListArgs, client: BastiClient) -> Result<()> {
                 task.details.remaining.as_secs(),
                 task.details.duration.subsec_millis()
             ),
-            task.details.priority.to_string(),
+            "█".repeat(progress),
         ])
     }
 
     let mut table = builder.build();
     table
         .with(Style::modern_rounded())
-        .modify(Rows::first(), Color::BOLD);
+        .modify(Columns::last(), Color::FG_GREEN)
+        .modify(Rows::first(), Color::FG_WHITE | Color::BOLD);
     eprintln!("{}", table);
 
     Ok(())
