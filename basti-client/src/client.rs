@@ -54,13 +54,18 @@ impl BastiClient {
         .await
     }
 
-    pub async fn list(&self, state: Option<TaskState>) -> Result<Vec<Task>> {
+    pub async fn list(&self, state: Option<TaskState>, limit: Option<u32>) -> Result<Vec<Task>> {
         self.execute(|mut url| {
             url.set_path("/api/tasks");
 
-            if let Some(ref state) = state {
+            if let Some(state) = &state {
                 url.query_pairs_mut()
                     .append_pair("state", &state.to_string());
+            }
+
+            if let Some(limit) = &limit {
+                url.query_pairs_mut()
+                    .append_pair("limit", &limit.to_string());
             }
 
             self.http_client.request(Method::GET, url)

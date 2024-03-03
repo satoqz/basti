@@ -7,7 +7,7 @@ use axum::{
     Router,
 };
 use basti_common::task::{CreateTaskPayload, Task, TaskState};
-use etcd_client::Client;
+use etcd_client::{Client, GetOptions};
 use serde::Deserialize;
 use std::{fmt::Debug, net::SocketAddr};
 use tower_http::trace::{DefaultOnFailure, DefaultOnRequest, DefaultOnResponse, TraceLayer};
@@ -54,6 +54,7 @@ async fn create_task_endpoint(
 #[derive(Debug, Deserialize)]
 struct ListTasksParams {
     state: Option<TaskState>,
+    limit: Option<u32>,
 }
 
 #[tracing::instrument(skip(client), err(Debug))]
@@ -61,9 +62,13 @@ async fn list_tasks_endpoint(
     State(mut client): State<Client>,
     Query(params): Query<ListTasksParams>,
 ) -> ApiResult<Vec<Task>> {
-    let tasks = list_tasks(&mut client, params.state, None)
-        .await
-        .context("Failed to list tasks")?;
+    let tasks = list_tasks(
+        &mut client,
+        params.state,
+        Some(GetOptions::default().with_limit(params.limit.unwrap_or(50) as i64)),
+    )
+    .await
+    .context("Failed to list tasks")?;
 
     Ok((
         StatusCode::OK,

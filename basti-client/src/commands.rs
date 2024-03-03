@@ -47,10 +47,25 @@ pub async fn submit_command(args: SubmitArgs, client: BastiClient) -> Result<()>
 pub struct ListArgs {
     #[clap(long, required = false, help = "Task state to filter by")]
     state: Option<TaskState>,
+
+    #[clap(
+        long,
+        required = false,
+        default_value = "50",
+        help = "Maximum number tasks to list"
+    )]
+    limit: u32,
 }
 
 pub async fn list_command(args: ListArgs, client: BastiClient) -> Result<()> {
-    let tasks = client.list(args.state).await?;
+    let tasks = client.list(args.state, Some(args.limit)).await?;
+    if tasks.len() == args.limit as usize {
+        println!(
+            " {} Number of tasks is truncated to limit of {}",
+            "⚠".yellow().bold(),
+            args.limit
+        )
+    }
     print_task_table(tasks);
     Ok(())
 }
