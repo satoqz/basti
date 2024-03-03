@@ -10,7 +10,7 @@ pub struct Task {
     #[serde(flatten)]
     pub key: TaskKey,
     #[serde(flatten)]
-    pub details: TaskDetails,
+    pub value: TaskValue,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,7 +28,7 @@ pub enum TaskState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-pub struct TaskDetails {
+pub struct TaskValue {
     pub duration: Duration,
     pub remaining: Duration,
     pub created_at: DateTime<Utc>,
@@ -47,7 +47,7 @@ impl Task {
     pub fn new(priority: u8, duration: Duration) -> Self {
         Self {
             key: TaskKey::new(priority),
-            details: TaskDetails::new(duration),
+            value: TaskValue::new(duration),
         }
     }
 }
@@ -68,7 +68,7 @@ impl Default for TaskState {
     }
 }
 
-impl TaskDetails {
+impl TaskValue {
     pub fn new(duration: Duration) -> Self {
         let now = Utc::now();
         Self {

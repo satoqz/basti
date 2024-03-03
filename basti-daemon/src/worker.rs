@@ -62,13 +62,13 @@ pub async fn run_detached(amount: NonZeroUsize, client: Client, node_name: Strin
 
 #[tracing::instrument(skip_all, err(Debug))]
 async fn work_on_task(client: &mut Client, mut task: Task, mut revision: i64) -> Result<()> {
-    while !task.details.remaining.is_zero() {
+    while !task.value.remaining.is_zero() {
         const ONE_SECOND: Duration = Duration::from_secs(1);
 
-        let work_duration = if task.details.remaining >= ONE_SECOND {
+        let work_duration = if task.value.remaining >= ONE_SECOND {
             ONE_SECOND
         } else {
-            task.details.remaining
+            task.value.remaining
         };
 
         tracing::info!(
@@ -84,7 +84,7 @@ async fn work_on_task(client: &mut Client, mut task: Task, mut revision: i64) ->
 
     finish_task(client, &task, revision).await?;
 
-    let time_taken = (Utc::now() - task.details.created_at).to_std()?;
+    let time_taken = (Utc::now() - task.value.created_at).to_std()?;
     tracing::info!(
         "Finished task {} after {}.{:03}s",
         task.key.id,
@@ -150,7 +150,7 @@ async fn requeue_tasks(client: &mut Client) -> Result<()> {
 
     for (task, revision) in tasks {
         const TEN_SECONDS: Duration = Duration::from_secs(10);
-        if (now - task.details.last_update).to_std()? > TEN_SECONDS {
+        if (now - task.value.last_update).to_std()? > TEN_SECONDS {
             tracing::info!("Re-queueing task {}", task.key.id);
             requeue_task(client, task, revision).await?;
         }

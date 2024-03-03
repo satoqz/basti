@@ -37,7 +37,7 @@ pub async fn list_tasks(
         tasks.push((
             Task {
                 key: TaskKey::from_str(kv.key_str()?)?,
-                details: serde_json::from_str(kv.value_str()?)?,
+                value: serde_json::from_str(kv.value_str()?)?,
             },
             kv.mod_revision(),
         ));
@@ -71,7 +71,7 @@ pub async fn find_task(client: &mut Client, id: Uuid) -> Result<Option<Task>> {
     let Some(kv) = maybe_kv else { return Ok(None) };
     let task = Task {
         key: TaskKey::from_str(kv.key_str()?)?,
-        details: serde_json::from_str(kv.value_str()?)?,
+        value: serde_json::from_str(kv.value_str()?)?,
     };
 
     Ok(Some(task))
@@ -144,8 +144,8 @@ pub async fn acquire_task(
     let initial_key = task.key.clone();
 
     task.key.state = TaskState::Running;
-    task.details.assignee = Some(node_name);
-    task.details.last_update = Utc::now();
+    task.value.assignee = Some(node_name);
+    task.value.last_update = Utc::now();
 
     let revision = update_task_with_transaction(
         client,
@@ -154,11 +154,7 @@ pub async fn acquire_task(
         &initial_key,
         [
             TxnOp::delete(initial_key.to_string(), None),
-            TxnOp::put(
-                task.key.to_string(),
-                serde_json::to_vec(&task.details)?,
-                None,
-            ),
+            TxnOp::put(task.key.to_string(), serde_json::to_vec(&task.value)?, None),
         ],
     )
     .await?;
@@ -172,8 +168,8 @@ pub async fn progress_task(
     revision: i64,
     progress: Duration,
 ) -> Result<(Task, i64)> {
-    task.details.remaining -= progress;
-    task.details.last_update = Utc::now();
+    task.value.remaining -= progress;
+    task.value.last_update = Utc::now();
 
     let revision = update_task_with_transaction(
         client,
@@ -182,7 +178,7 @@ pub async fn progress_task(
         &task.key,
         [TxnOp::put(
             task.key.to_string(),
-            serde_json::to_vec(&task.details)?,
+            serde_json::to_vec(&task.value)?,
             None,
         )],
     )
@@ -199,8 +195,8 @@ pub async fn requeue_task(
     let initial_key = task.key.clone();
 
     task.key.state = TaskState::Queued;
-    task.details.assignee = None;
-    task.details.last_update = Utc::now();
+    task.value.assignee = None;
+    task.value.last_update = Utc::now();
 
     let revision = update_task_with_transaction(
         client,
@@ -209,11 +205,7 @@ pub async fn requeue_task(
         &initial_key,
         [
             TxnOp::delete(initial_key.to_string(), None),
-            TxnOp::put(
-                task.key.to_string(),
-                serde_json::to_vec(&task.details)?,
-                None,
-            ),
+            TxnOp::put(task.key.to_string(), serde_json::to_vec(&task.value)?, None),
         ],
     )
     .await?;
