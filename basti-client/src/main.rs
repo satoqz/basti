@@ -29,7 +29,7 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Submit tasks
+    /// Submit a new task
     Submit(SubmitArgs),
     /// List tasks
     List(ListArgs),
