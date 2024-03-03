@@ -82,7 +82,6 @@ async fn create_task_endpoint(
 
 #[derive(Debug, Deserialize)]
 struct ListTasksParams {
-    #[serde(rename = "type")]
     state: Option<TaskState>,
 }
 
