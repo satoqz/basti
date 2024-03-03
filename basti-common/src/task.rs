@@ -39,7 +39,7 @@ pub enum TaskState {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct TaskPriority(u8);
+pub struct TaskPriority(pub u8);
 
 impl Task {
     pub fn new(priority: TaskPriority, duration: Duration) -> Self {
