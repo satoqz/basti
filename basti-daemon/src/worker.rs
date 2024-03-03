@@ -5,7 +5,7 @@ use crate::ops::{
 use anyhow::Result;
 use async_channel::{Receiver, Sender};
 use basti_common::task::*;
-use chrono::Utc;
+use chrono::{TimeDelta, Utc};
 use etcd_client::{GetOptions, KvClient, SortOrder, SortTarget};
 use std::{num::NonZeroUsize, sync::Arc, time::Duration};
 use tokio::{sync::Semaphore, task::JoinSet, time::sleep};
@@ -164,8 +164,8 @@ async fn requeue_tasks(client: &mut KvClient) -> Result<bool> {
     }
 
     for (task, revision) in tasks {
-        const TEN_SECONDS: Duration = Duration::from_secs(10);
-        if (now - task.value.last_update).to_std()? > TEN_SECONDS {
+        const TEN_SECONDS: TimeDelta = TimeDelta::seconds(10);
+        if now - task.value.last_update > TEN_SECONDS {
             tracing::info!("Re-queueing task {}", task.key.id);
             try_requeue_task(client, task, revision).await?;
         }
