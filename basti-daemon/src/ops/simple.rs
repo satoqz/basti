@@ -1,4 +1,4 @@
-use super::revision_based::update_task_with_transaction;
+use super::revision_based::try_update_task_with_transaction;
 use anyhow::Result;
 use basti_common::task::{Task, TaskKey, TaskState};
 use etcd_client::{Client, GetOptions, TxnOp};
@@ -42,7 +42,7 @@ pub async fn create_task(
 ) -> Result<(Task, i64)> {
     let task = Task::new(priority, duration);
 
-    let revision = update_task_with_transaction(
+    let revision = try_update_task_with_transaction(
         client,
         &task,
         &task.key,

@@ -8,7 +8,7 @@ use basti_common::{
 use chrono::Utc;
 use etcd_client::{Client, Compare, CompareOp, Txn, TxnOp, TxnOpResponse};
 
-pub async fn update_task_with_transaction<V>(
+pub async fn try_update_task_with_transaction<V>(
     client: &mut Client,
     task: &Task,
     initial_key: &TaskKey,
@@ -66,7 +66,7 @@ pub async fn try_acquire_task(
     task.value.assignee = Some(node_name);
     task.value.last_update = Utc::now();
 
-    let revision = update_task_with_transaction(
+    let revision = try_update_task_with_transaction(
         client,
         &task,
         &initial_key,
@@ -90,7 +90,7 @@ pub async fn try_progress_task(
     task.value.remaining -= progress;
     task.value.last_update = Utc::now();
 
-    let revision = update_task_with_transaction(
+    let revision = try_update_task_with_transaction(
         client,
         &task,
         &task.key,
@@ -100,6 +100,32 @@ pub async fn try_progress_task(
             serde_json::to_vec(&task.value)?,
             None,
         )],
+    )
+    .await?;
+
+    Ok((task, revision))
+}
+
+pub async fn try_requeue_task(
+    client: &mut Client,
+    mut task: Task,
+    revision: i64,
+) -> Result<(Task, i64)> {
+    let initial_key = task.key.clone();
+
+    task.key.state = TaskState::Queued;
+    task.value.assignee = None;
+    task.value.last_update = Utc::now();
+
+    let revision = try_update_task_with_transaction(
+        client,
+        &task,
+        &initial_key,
+        Some(revision),
+        [
+            TxnOp::delete(initial_key.to_string(), None),
+            TxnOp::put(task.key.to_string(), serde_json::to_vec(&task.value)?, None),
+        ],
     )
     .await?;
 
@@ -123,30 +149,4 @@ pub async fn try_finish_task(client: &mut Client, task: &Task, revision: i64) ->
     }
 
     Ok(())
-}
-
-pub async fn try_requeue_task(
-    client: &mut Client,
-    mut task: Task,
-    revision: i64,
-) -> Result<(Task, i64)> {
-    let initial_key = task.key.clone();
-
-    task.key.state = TaskState::Queued;
-    task.value.assignee = None;
-    task.value.last_update = Utc::now();
-
-    let revision = update_task_with_transaction(
-        client,
-        &task,
-        &initial_key,
-        Some(revision),
-        [
-            TxnOp::delete(initial_key.to_string(), None),
-            TxnOp::put(task.key.to_string(), serde_json::to_vec(&task.value)?, None),
-        ],
-    )
-    .await?;
-
-    Ok((task, revision))
 }
