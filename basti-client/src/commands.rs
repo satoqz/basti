@@ -13,12 +13,12 @@ use tabled::{
 pub struct SubmitArgs {
     #[clap(
         long,
-        default_value = "0",
-        help = "Task priority, higher = higher priority, 0 = lowest priority"
+        default_value = "5",
+        help = "Task priority, 0 = highest priority"
     )]
     priority: u32,
 
-    #[clap(long, default_value = "0", help = "Task duration in seconds")]
+    #[clap(long, default_value = "10", help = "Task duration in seconds")]
     seconds: u64,
 
     #[clap(

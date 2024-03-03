@@ -26,14 +26,15 @@ pub enum TaskState {
     Running,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TaskDetails {
     pub priority: u32,
+    pub remaining: Duration,
+    pub created_at: DateTime<Utc>,
+    pub last_update: DateTime<Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub assignee: Option<String>,
     pub duration: Duration,
-    pub remaining: Duration,
-    pub last_update: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,12 +70,14 @@ impl Default for TaskState {
 
 impl TaskDetails {
     pub fn new(priority: u32, duration: Duration) -> Self {
+        let now = Utc::now();
         Self {
             priority,
             assignee: None,
             duration,
             remaining: duration,
-            last_update: Utc::now(),
+            created_at: now,
+            last_update: now,
         }
     }
 }

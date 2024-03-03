@@ -8,7 +8,7 @@ use axum::{
     Router,
 };
 use basti_common::task::{CreateTaskPayload, Task, TaskState};
-use etcd_client::{Client, GetOptions, SortOrder, SortTarget};
+use etcd_client::Client;
 use serde::Deserialize;
 use std::{
     fmt::{Debug, Display},
@@ -60,12 +60,12 @@ pub async fn run(addr: SocketAddr, client: Client) -> anyhow::Result<()> {
 
     let listener = tokio::net::TcpListener::bind(addr)
         .await
-        .context("Failed to bind address.")?;
+        .context("Failed to bind address")?;
     tracing::info!("Listening at http://{addr}");
 
     axum::serve(listener, app)
         .await
-        .context("Failed to serve HTTP.")
+        .context("Failed to serve HTTP")
 }
 
 #[tracing::instrument(skip(client), err(Debug))]
@@ -75,7 +75,7 @@ async fn create_task_endpoint(
 ) -> ApiResult<Task> {
     let task = create_task(&mut client, payload.duration, payload.priority)
         .await
-        .context("Failed to create task.")?;
+        .context("Failed to create task")?;
 
     Ok((StatusCode::CREATED, Json(task)))
 }
@@ -91,13 +91,12 @@ async fn list_tasks_endpoint(
     State(mut client): State<Client>,
     Query(params): Query<ListTasksParams>,
 ) -> ApiResult<Vec<Task>> {
-    let tasks = list_tasks(
-        &mut client,
-        params.state,
-        Some(GetOptions::default().with_sort(SortTarget::Mod, SortOrder::Descend)),
-    )
-    .await
-    .context("Failed to list tasks.")?;
+    let tasks = list_tasks(&mut client, params.state, None)
+        .await
+        .context("Failed to list tasks")?;
 
-    Ok((StatusCode::OK, Json(tasks)))
+    Ok((
+        StatusCode::OK,
+        Json(tasks.into_iter().map(|(task, _)| task).collect()),
+    ))
 }

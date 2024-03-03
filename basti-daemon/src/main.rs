@@ -2,7 +2,7 @@ mod api;
 mod ops;
 mod worker;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use clap::Parser;
 use etcd_client::{Client, ConnectOptions};
 use std::{net::SocketAddr, num::NonZeroUsize, time::Duration};
@@ -52,14 +52,9 @@ async fn main() -> Result<()> {
     )
     .await?;
 
-    let api_handle = api::run(args.listen, client.clone());
-
     if let Some(workers) = NonZeroUsize::new(args.workers) {
-        tokio::select! {
-            result = api_handle => result,
-            _ = worker::run(workers, client, args.name) =>  bail!("Worker exited unexpectedly.")
-        }
-    } else {
-        api_handle.await
+        worker::run_detached(workers, client.clone(), args.name).await;
     }
+
+    api::run(args.listen, client).await
 }
