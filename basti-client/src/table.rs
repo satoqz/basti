@@ -8,7 +8,7 @@ use tabled::{
 };
 
 pub fn print_task_table(mut tasks: Vec<Task>) {
-    tasks.sort_by(|a, b| a.value.cmp(&b.value));
+    tasks.sort_by(|a, b| a.value.last_update.cmp(&b.value.last_update));
 
     let mut builder = Builder::new();
     builder.push_record([
@@ -33,7 +33,7 @@ pub fn print_task_table(mut tasks: Vec<Task>) {
         builder.push_record([
             task.key.id.to_string(),
             task.key.state.to_string(),
-            task.key.priority.to_string(),
+            task.value.priority.to_string(),
             task.value.assignee.unwrap_or("none".into()),
             format!(
                 "{}.{:03}s",

@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Display, str::FromStr, time::Duration};
 use uuid::Uuid;
 
+use crate::priority::PriorityKey;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Task {
     #[serde(flatten)]
@@ -13,12 +15,13 @@ pub struct Task {
     pub value: TaskValue,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskValue {
     pub duration: Duration,
     pub remaining: Duration,
     pub created_at: DateTime<Utc>,
     pub last_update: DateTime<Utc>,
+    pub priority: TaskPriority,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub assignee: Option<String>,
 }
@@ -26,7 +29,6 @@ pub struct TaskValue {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskKey {
     pub state: TaskState,
-    pub priority: TaskPriority,
     pub id: Uuid,
 }
 
@@ -44,17 +46,20 @@ pub struct TaskPriority(pub u8);
 impl Task {
     pub fn new(priority: TaskPriority, duration: Duration) -> Self {
         Self {
-            key: TaskKey::new(priority),
-            value: TaskValue::new(duration),
+            key: TaskKey::generate(),
+            value: TaskValue::new_with_current_time(duration, priority),
         }
+    }
+
+    pub fn priority_key(&self) -> PriorityKey {
+        PriorityKey::from(self)
     }
 }
 
 impl TaskKey {
-    pub fn new(priority: TaskPriority) -> Self {
+    pub fn generate() -> Self {
         Self {
             state: TaskState::default(),
-            priority,
             id: Uuid::new_v4(),
         }
     }
@@ -66,14 +71,7 @@ impl TaskKey {
 
 impl Display for TaskKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}_{}_{:03}_{}",
-            Self::prefix(),
-            self.state,
-            self.priority,
-            self.id
-        )
+        write!(f, "{}_{}_{}", Self::prefix(), self.state, self.id)
     }
 }
 
@@ -82,30 +80,26 @@ impl FromStr for TaskKey {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = s.split('_').collect();
 
-        if parts.len() != 4 || parts[0] != Self::prefix() {
+        if parts.len() != 3 || parts[0] != Self::prefix() {
             bail!("malformed key")
         }
 
         let state = TaskState::from_str(parts[1], false).map_err(|err| anyhow!(err))?;
-        let priority = TaskPriority::from_str(parts[2])?;
-        let id = Uuid::from_str(parts[3])?;
+        let id = Uuid::from_str(parts[2])?;
 
-        Ok(Self {
-            state,
-            priority,
-            id,
-        })
+        Ok(Self { state, id })
     }
 }
 
 impl TaskValue {
-    pub fn new(duration: Duration) -> Self {
+    pub fn new_with_current_time(duration: Duration, priority: TaskPriority) -> Self {
         let now = Utc::now();
         Self {
             duration,
             remaining: duration,
             created_at: now,
             last_update: now,
+            priority,
             assignee: None,
         }
     }
