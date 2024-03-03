@@ -1,6 +1,6 @@
 use crate::{client::BastiClient, table::print_task_table, util::Compact};
 use anyhow::Result;
-use basti_common::task::TaskState;
+use basti_common::task::{TaskPriority, TaskState};
 use clap::Args;
 use colored::Colorize;
 use std::time::Duration;
@@ -10,10 +10,10 @@ use uuid::Uuid;
 pub struct SubmitArgs {
     #[clap(
         long,
-        default_value = "16",
+        default_value = "TaskPriority::default",
         help = "Task priority, 0 = highest priority"
     )]
-    priority: u8,
+    priority: TaskPriority,
 
     #[clap(long, default_value = "10", help = "Task duration in seconds")]
     seconds: u64,

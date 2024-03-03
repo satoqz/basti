@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 use basti_common::{
     payload::CreateTask,
-    task::{Task, TaskState},
+    task::{Task, TaskPriority, TaskState},
 };
 use reqwest::{Method, RequestBuilder};
 use serde::de::DeserializeOwned;
@@ -48,7 +48,7 @@ impl BastiClient {
         bail!("All API endpoints are dead");
     }
 
-    pub async fn submit(&self, duration: Duration, priority: u8) -> Result<Task> {
+    pub async fn submit(&self, duration: Duration, priority: TaskPriority) -> Result<Task> {
         let payload = CreateTask { duration, priority };
         self.execute(|mut url| {
             url.set_path("/api/tasks");

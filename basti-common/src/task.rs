@@ -13,8 +13,36 @@ pub struct Task {
     pub value: TaskValue,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+pub struct TaskValue {
+    pub duration: Duration,
+    pub remaining: Duration,
+    pub created_at: DateTime<Utc>,
+    pub last_update: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assignee: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskKey {
+    pub state: TaskState,
+    pub priority: TaskPriority,
+    pub id: Uuid,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ValueEnum)]
+#[serde(rename_all = "lowercase")]
+pub enum TaskState {
+    Queued,
+    Running,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct TaskPriority(u8);
+
 impl Task {
-    pub fn new(priority: u8, duration: Duration) -> Self {
+    pub fn new(priority: TaskPriority, duration: Duration) -> Self {
         Self {
             key: TaskKey::new(priority),
             value: TaskValue::new(duration),
@@ -22,14 +50,15 @@ impl Task {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TaskKey {
-    pub state: TaskState,
-    pub priority: u8,
-    pub id: Uuid,
-}
-
 impl TaskKey {
+    pub fn new(priority: TaskPriority) -> Self {
+        Self {
+            state: TaskState::default(),
+            priority,
+            id: Uuid::new_v4(),
+        }
+    }
+
     pub fn prefix() -> &'static str {
         "task"
     }
@@ -58,7 +87,7 @@ impl FromStr for TaskKey {
         }
 
         let state = TaskState::from_str(parts[1], false).map_err(|err| anyhow!(err))?;
-        let priority = parts[2].parse()?;
+        let priority = TaskPriority::from_str(parts[2])?;
         let id = Uuid::from_str(parts[3])?;
 
         Ok(Self {
@@ -69,11 +98,17 @@ impl FromStr for TaskKey {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ValueEnum)]
-#[serde(rename_all = "lowercase")]
-pub enum TaskState {
-    Queued,
-    Running,
+impl TaskValue {
+    pub fn new(duration: Duration) -> Self {
+        let now = Utc::now();
+        Self {
+            duration,
+            remaining: duration,
+            created_at: now,
+            last_update: now,
+            assignee: None,
+        }
+    }
 }
 
 impl Default for TaskState {
@@ -91,35 +126,21 @@ impl Display for TaskState {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-pub struct TaskValue {
-    pub duration: Duration,
-    pub remaining: Duration,
-    pub created_at: DateTime<Utc>,
-    pub last_update: DateTime<Utc>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub assignee: Option<String>,
-}
-
-impl TaskKey {
-    fn new(priority: u8) -> Self {
-        Self {
-            state: TaskState::default(),
-            priority,
-            id: Uuid::new_v4(),
-        }
+impl Default for TaskPriority {
+    fn default() -> Self {
+        Self(16)
     }
 }
 
-impl TaskValue {
-    pub fn new(duration: Duration) -> Self {
-        let now = Utc::now();
-        Self {
-            duration,
-            remaining: duration,
-            created_at: now,
-            last_update: now,
-            assignee: None,
-        }
+impl Display for TaskPriority {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl FromStr for TaskPriority {
+    type Err = Error;
+    fn from_str(s: &str) -> std::prelude::v1::Result<Self, Self::Err> {
+        Ok(Self(s.parse()?))
     }
 }
