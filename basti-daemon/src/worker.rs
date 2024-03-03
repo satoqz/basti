@@ -3,7 +3,7 @@ use anyhow::Result;
 use async_channel::{Receiver, Sender};
 use basti_common::task::*;
 use chrono::Utc;
-use etcd_client::Client;
+use etcd_client::{Client, GetOptions, SortOrder, SortTarget};
 use std::{num::NonZeroUsize, sync::Arc, time::Duration};
 use tokio::{sync::Semaphore, task::JoinSet, time::sleep};
 
@@ -102,13 +102,20 @@ async fn feed_workers(
     node_name: String,
 ) -> Result<()> {
     'outer: loop {
-        let mut tasks = list_tasks(client, Some(TaskState::Queued), None).await?;
+        let tasks = list_tasks(
+            client,
+            Some(TaskState::Queued),
+            Some(
+                GetOptions::default()
+                    .with_sort(SortTarget::Value, SortOrder::Ascend)
+                    .with_limit(100),
+            ),
+        )
+        .await?;
 
         if tasks.is_empty() {
             break;
         }
-
-        tasks.sort_by(|(a, _), (b, _)| a.details.cmp(&b.details));
 
         for (task, revision) in tasks.into_iter() {
             let task_id = task.key.id.clone();
@@ -130,7 +137,16 @@ async fn feed_workers(
 #[tracing::instrument(skip_all, err(Debug))]
 async fn requeue_tasks(client: &mut Client) -> Result<()> {
     let now = Utc::now();
-    let tasks = list_tasks(client, Some(TaskState::Running), None).await?;
+    let tasks = list_tasks(
+        client,
+        Some(TaskState::Running),
+        Some(
+            GetOptions::default()
+                .with_sort(SortTarget::Mod, SortOrder::Ascend)
+                .with_limit(100),
+        ),
+    )
+    .await?;
 
     for (task, revision) in tasks {
         const TEN_SECONDS: Duration = Duration::from_secs(10);
