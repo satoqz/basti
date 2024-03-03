@@ -1,4 +1,4 @@
-use anyhow::{bail, Error, Result};
+use anyhow::bail;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, str::FromStr};
 use strum_macros::{Display as StrumDisplay, EnumIter, EnumString};
@@ -30,8 +30,8 @@ impl Display for TaskKey {
 }
 
 impl FromStr for TaskKey {
-    type Err = Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> anyhow::Result<Self> {
         let parts: Vec<&str> = s.split('_').collect();
 
         if parts.len() != 3 || parts[0] != Self::prefix() {

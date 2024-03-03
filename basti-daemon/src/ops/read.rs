@@ -1,11 +1,14 @@
-use anyhow::{bail, Result};
+use anyhow::bail;
 use basti_task::{PriorityKey, Task, TaskKey, TaskState};
 use etcd_client::{GetOptions, KvClient, SortOrder, SortTarget, Txn, TxnOp, TxnOpResponse};
 use std::str::FromStr;
 use strum::IntoEnumIterator;
 use uuid::Uuid;
 
-pub async fn list_priorities(client: &mut KvClient, limit: i64) -> Result<Vec<PriorityKey>> {
+pub async fn list_priorities(
+    client: &mut KvClient,
+    limit: i64,
+) -> anyhow::Result<Vec<PriorityKey>> {
     let response = client
         .get(
             PriorityKey::prefix(),
@@ -29,7 +32,7 @@ pub async fn list_tasks(
     client: &mut KvClient,
     state: Option<TaskState>,
     limit: i64,
-) -> Result<Vec<Task>> {
+) -> anyhow::Result<Vec<Task>> {
     let key = match state {
         None => TaskKey::prefix().to_string(),
         Some(state) => format!("{}_{}", TaskKey::prefix(), state),
@@ -50,7 +53,7 @@ pub async fn list_tasks(
     Ok(tasks)
 }
 
-pub async fn find_task(client: &mut KvClient, id: Uuid) -> Result<Option<Task>> {
+pub async fn find_task(client: &mut KvClient, id: Uuid) -> anyhow::Result<Option<Task>> {
     let txn = Txn::new().and_then(
         TaskState::iter()
             .map(|state| TxnOp::get(TaskKey { id, state }.to_string(), None))

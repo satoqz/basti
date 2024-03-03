@@ -1,5 +1,5 @@
 use crate::{Task, TaskPriority};
-use anyhow::{bail, Error, Result};
+use anyhow::bail;
 use std::{fmt::Display, str::FromStr};
 use uuid::Uuid;
 
@@ -31,8 +31,8 @@ impl From<&Task> for PriorityKey {
 }
 
 impl FromStr for PriorityKey {
-    type Err = Error;
-    fn from_str(s: &str) -> Result<Self> {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> anyhow::Result<Self> {
         let parts: Vec<&str> = s.split('_').collect();
 
         if parts.len() != 3 || parts[0] != Self::prefix() {

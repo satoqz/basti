@@ -1,5 +1,4 @@
 use crate::{client::BastiClient, table::print_task_table, util::Compact};
-use anyhow::Result;
 use basti_task::{TaskPriority, TaskState};
 use clap::Args;
 use colored::Colorize;
@@ -26,7 +25,7 @@ pub struct SubmitArgs {
     millis: u64,
 }
 
-pub async fn submit_command(args: SubmitArgs, client: BastiClient) -> Result<()> {
+pub async fn submit_command(args: SubmitArgs, client: BastiClient) -> anyhow::Result<()> {
     let task = client
         .submit(
             Duration::from_secs(args.seconds) + Duration::from_millis(args.millis),
@@ -57,7 +56,7 @@ pub struct ListArgs {
     limit: u32,
 }
 
-pub async fn list_command(args: ListArgs, client: BastiClient) -> Result<()> {
+pub async fn list_command(args: ListArgs, client: BastiClient) -> anyhow::Result<()> {
     let tasks = client.list(args.state, Some(args.limit)).await?;
     if tasks.len() == args.limit as usize {
         println!(
@@ -76,7 +75,7 @@ pub struct ShowArgs {
     ids: Vec<Uuid>,
 }
 
-pub async fn show_command(args: ShowArgs, client: BastiClient) -> Result<()> {
+pub async fn show_command(args: ShowArgs, client: BastiClient) -> anyhow::Result<()> {
     let tasks = futures::future::join_all(args.ids.compact().into_iter().map(|id| client.find(id)))
         .await
         .into_iter()
@@ -91,7 +90,7 @@ pub struct CancelArgs {
     ids: Vec<Uuid>,
 }
 
-pub async fn cancel_command(args: CancelArgs, client: BastiClient) -> Result<()> {
+pub async fn cancel_command(args: CancelArgs, client: BastiClient) -> anyhow::Result<()> {
     let task_results =
         futures::future::join_all(args.ids.compact().into_iter().map(|id| client.cancel(id))).await;
 

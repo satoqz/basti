@@ -1,4 +1,3 @@
-use anyhow::{Error, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, str::FromStr, time::Duration};
@@ -45,8 +44,8 @@ impl Display for TaskPriority {
 }
 
 impl FromStr for TaskPriority {
-    type Err = Error;
-    fn from_str(s: &str) -> Result<Self> {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> anyhow::Result<Self> {
         Ok(Self(s.trim_start_matches('0').parse()?))
     }
 }

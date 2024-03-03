@@ -1,9 +1,8 @@
-use std::time::Duration;
-
-use anyhow::{bail, Result};
+use anyhow::bail;
 use basti_task::{Task, TaskKey, TaskState};
 use chrono::Utc;
 use etcd_client::{Compare, CompareOp, KvClient, Txn, TxnOp, TxnOpResponse};
+use std::time::Duration;
 
 pub async fn try_update_task<V>(
     client: &mut KvClient,
@@ -11,7 +10,7 @@ pub async fn try_update_task<V>(
     initial_key: &TaskKey,
     revision: Option<i64>,
     operations: V,
-) -> Result<i64>
+) -> anyhow::Result<i64>
 where
     V: Into<Vec<TxnOp>>,
 {
@@ -83,7 +82,7 @@ pub async fn try_progress_task(
     mut task: Task,
     revision: i64,
     progress: Duration,
-) -> Result<(Task, i64)> {
+) -> anyhow::Result<(Task, i64)> {
     task.value.remaining -= progress;
     task.value.last_update = Utc::now();
 
@@ -107,7 +106,7 @@ pub async fn try_requeue_task(
     client: &mut KvClient,
     mut task: Task,
     revision: i64,
-) -> Result<(Task, i64)> {
+) -> anyhow::Result<(Task, i64)> {
     let initial_key = task.key.clone();
 
     task.key.state = TaskState::Queued;
@@ -129,7 +128,11 @@ pub async fn try_requeue_task(
     Ok((task, revision))
 }
 
-pub async fn try_finish_task(client: &mut KvClient, task: &Task, revision: i64) -> Result<()> {
+pub async fn try_finish_task(
+    client: &mut KvClient,
+    task: &Task,
+    revision: i64,
+) -> anyhow::Result<()> {
     let txn = Txn::new()
         .when([Compare::mod_revision(
             task.key.to_string(),

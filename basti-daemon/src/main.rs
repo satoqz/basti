@@ -1,9 +1,7 @@
 mod api;
-mod api_error;
 mod ops;
 mod worker;
 
-use anyhow::Result;
 use clap::Parser;
 use etcd_client::{Client, ConnectOptions};
 use std::{net::SocketAddr, num::NonZeroUsize, time::Duration};
@@ -35,7 +33,7 @@ struct Cli {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
 
     tracing_subscriber::fmt()

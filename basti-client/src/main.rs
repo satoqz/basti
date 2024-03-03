@@ -4,7 +4,6 @@ mod table;
 mod util;
 
 use crate::{client::BastiClient, commands::*};
-use anyhow::Result;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use std::process;
@@ -38,7 +37,7 @@ enum Command {
 }
 
 #[tokio::main(flavor = "current_thread")]
-async fn main() -> Result<()> {
+async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     let basti = BastiClient::new(cli.cluster)?;
 

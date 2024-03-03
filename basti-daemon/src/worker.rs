@@ -1,7 +1,6 @@
 use crate::ops::{
     acquire_task, find_task, finish_task, list_priorities, list_tasks, progress_task, requeue_task,
 };
-use anyhow::Result;
 use async_channel::{Receiver, Sender};
 use basti_task::{Task, TaskState};
 use chrono::{TimeDelta, Utc};
@@ -71,7 +70,11 @@ pub async fn run_detached(amount: NonZeroUsize, client: KvClient, node_name: Str
 }
 
 #[tracing::instrument(skip_all, err(Debug))]
-async fn work_on_task(client: &mut KvClient, mut task: Task, mut revision: i64) -> Result<()> {
+async fn work_on_task(
+    client: &mut KvClient,
+    mut task: Task,
+    mut revision: i64,
+) -> anyhow::Result<()> {
     while !task.value.remaining.is_zero() {
         const ONE_SECOND: Duration = Duration::from_secs(1);
 
@@ -110,7 +113,7 @@ async fn feed_workers(
     client: &mut KvClient,
     sender: &Sender<(Task, i64)>,
     node_name: String,
-) -> Result<bool> {
+) -> anyhow::Result<bool> {
     'outer: loop {
         let priorities = list_priorities(client, 100).await?;
         if priorities.is_empty() {
@@ -119,16 +122,9 @@ async fn feed_workers(
 
         for priority in priorities.into_iter() {
             tracing::info!("Trying to find matching task for priority {}", priority.id);
-            let task = match find_task(client, priority.id).await {
-                Ok(task) => task,
-                Err(error) => {
-                    tracing::warn!(
-                        "Could not find task matching priorty {}: {:?}",
-                        priority.id,
-                        error
-                    );
-                    continue;
-                }
+            let Some(task) = find_task(client, priority.id).await? else {
+                tracing::warn!("Could not find task matching priorty {}", priority.id);
+                continue;
             };
 
             tracing::info!("Trying to acquire task {}", priority.id);
@@ -147,7 +143,7 @@ async fn feed_workers(
 }
 
 #[tracing::instrument(skip_all, err(Debug))]
-async fn requeue_tasks(client: &mut KvClient) -> Result<bool> {
+async fn requeue_tasks(client: &mut KvClient) -> anyhow::Result<bool> {
     let now = Utc::now();
 
     let tasks = list_tasks(client, Some(TaskState::Running), 100).await?;

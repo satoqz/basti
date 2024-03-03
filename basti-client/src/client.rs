@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::bail;
 use basti_task::{CreateTask, Task, TaskPriority, TaskState};
 use reqwest::{Method, RequestBuilder};
 use serde::de::DeserializeOwned;
@@ -13,7 +13,7 @@ pub struct BastiClient {
 }
 
 impl BastiClient {
-    pub fn new(endpoints: Vec<Url>) -> Result<Self> {
+    pub fn new(endpoints: Vec<Url>) -> anyhow::Result<Self> {
         Ok(Self {
             endpoints,
             http_client: reqwest::Client::builder()
@@ -23,7 +23,7 @@ impl BastiClient {
         })
     }
 
-    async fn execute<T, F>(&self, make_request: F) -> Result<T>
+    async fn execute<T, F>(&self, make_request: F) -> anyhow::Result<T>
     where
         T: DeserializeOwned,
         F: Fn(Url) -> RequestBuilder,
@@ -45,7 +45,7 @@ impl BastiClient {
         bail!("All API endpoints are dead");
     }
 
-    pub async fn submit(&self, duration: Duration, priority: TaskPriority) -> Result<Task> {
+    pub async fn submit(&self, duration: Duration, priority: TaskPriority) -> anyhow::Result<Task> {
         let payload = CreateTask { duration, priority };
         self.execute(|mut url| {
             url.set_path("/api/tasks");
@@ -54,7 +54,11 @@ impl BastiClient {
         .await
     }
 
-    pub async fn list(&self, state: Option<TaskState>, limit: Option<u32>) -> Result<Vec<Task>> {
+    pub async fn list(
+        &self,
+        state: Option<TaskState>,
+        limit: Option<u32>,
+    ) -> anyhow::Result<Vec<Task>> {
         self.execute(|mut url| {
             url.set_path("/api/tasks");
 
@@ -73,7 +77,7 @@ impl BastiClient {
         .await
     }
 
-    pub async fn find(&self, id: Uuid) -> Result<Task> {
+    pub async fn find(&self, id: Uuid) -> anyhow::Result<Task> {
         let path = format!("/api/tasks/{id}");
         self.execute::<Task, _>(|mut url| {
             url.set_path(&path);
@@ -82,7 +86,7 @@ impl BastiClient {
         .await
     }
 
-    pub async fn cancel(&self, id: Uuid) -> Result<Task> {
+    pub async fn cancel(&self, id: Uuid) -> anyhow::Result<Task> {
         let path = format!("/api/tasks/{id}");
         self.execute::<Task, _>(|mut url| {
             url.set_path(&path);
