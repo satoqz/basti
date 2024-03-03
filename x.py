@@ -8,18 +8,21 @@ import sys
 
 SERVICES = ["bastid", "etcd"]
 
-BASTID_DOCKERFILE = "docker/bastid.Dockerfile"
+BASTI_SOURCE_DIR = os.path.dirname(os.path.realpath(__file__))
+BASTI_INVENTORY_PATH = f"{BASTI_SOURCE_DIR}/inventory.toml"
+
+BASTID_DOCKERFILE = f"{BASTI_SOURCE_DIR}/docker/bastid.Dockerfile"
 BASTID_IMAGE_TAG = "toasterwaver/bastid:latest"
 BASTID_PORT = 1337
 BASTID_WORKERS = 3
 
-ETCD_DOCKERFILE = "docker/etcd.Dockerfile"
+ETCD_DOCKERFILE = f"{BASTI_SOURCE_DIR}/docker/etcd.Dockerfile"
 ETCD_IMAGE_TAG = "toasterwaver/etcd:latest"
 ETCD_CLUSTER_TOKEN = "basti-etcd-cluster"
 ETCD_CLIENT_PORT = 2379
 ETCD_PEER_PORT = 2380
 
-with open("inventory.toml", "rb") as f:
+with open(BASTI_INVENTORY_PATH, "rb") as f:
     INVENTORY: dict[str, str | dict[str, str]] = tomllib.load(f)
 
 
