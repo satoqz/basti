@@ -6,7 +6,10 @@ use axum::{
     routing::{delete, get, post},
     Router,
 };
-use basti_common::task::{CreateTaskPayload, Task, TaskState};
+use basti_common::{
+    payload::CreateTask,
+    task::{Task, TaskState},
+};
 use etcd_client::{Client, GetOptions};
 use serde::Deserialize;
 use std::{fmt::Debug, net::SocketAddr};
@@ -42,7 +45,7 @@ pub async fn run(addr: SocketAddr, client: Client) -> anyhow::Result<()> {
 #[tracing::instrument(skip(client), err(Debug))]
 async fn create_task_endpoint(
     State(mut client): State<Client>,
-    Json(payload): Json<CreateTaskPayload>,
+    Json(payload): Json<CreateTask>,
 ) -> ApiResult<Task> {
     let task = create_task(&mut client, payload.duration, payload.priority)
         .await

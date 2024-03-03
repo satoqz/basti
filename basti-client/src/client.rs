@@ -1,5 +1,8 @@
 use anyhow::{bail, Result};
-use basti_common::task::*;
+use basti_common::{
+    payload::CreateTask,
+    task::{Task, TaskState},
+};
 use reqwest::{Method, RequestBuilder};
 use serde::de::DeserializeOwned;
 use std::time::Duration;
@@ -46,7 +49,7 @@ impl BastiClient {
     }
 
     pub async fn submit(&self, duration: Duration, priority: u8) -> Result<Task> {
-        let payload = CreateTaskPayload { duration, priority };
+        let payload = CreateTask { duration, priority };
         self.execute(|mut url| {
             url.set_path("/api/tasks");
             self.http_client.request(Method::POST, url).json(&payload)
