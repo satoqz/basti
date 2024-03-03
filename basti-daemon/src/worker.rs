@@ -39,7 +39,11 @@ pub async fn run_detached(amount: NonZeroUsize, client: KvClient, node_name: Str
         loop {
             let _permit = semaphore.acquire().await.unwrap();
             match feed_workers(&mut feeding_client, &sender, node_name.clone()).await {
-                Ok(_) => sleep(Duration::from_secs(1)).await,
+                Ok(queue_empty) => {
+                    if queue_empty {
+                        sleep(Duration::from_millis(500)).await
+                    }
+                }
                 Err(_) => {
                     tracing::warn!("Failed to feed workers, waiting 5 seconds");
                     sleep(Duration::from_secs(5)).await;
@@ -51,7 +55,11 @@ pub async fn run_detached(amount: NonZeroUsize, client: KvClient, node_name: Str
     join_set.spawn(async move {
         loop {
             match requeue_tasks(&mut requeueing_client).await {
-                Ok(_) => sleep(Duration::from_secs(1)).await,
+                Ok(queue_empty) => {
+                    if queue_empty {
+                        sleep(Duration::from_millis(500)).await
+                    }
+                }
                 Err(_) => {
                     tracing::warn!("Failed to requeue tasks, waiting 5 seconds");
                     sleep(Duration::from_secs(5)).await;
@@ -103,7 +111,7 @@ async fn feed_workers(
     client: &mut KvClient,
     sender: &Sender<(Task, i64)>,
     node_name: String,
-) -> Result<()> {
+) -> Result<bool> {
     'outer: loop {
         let tasks = list_tasks(
             client,
@@ -117,7 +125,7 @@ async fn feed_workers(
         .await?;
 
         if tasks.is_empty() {
-            break;
+            return Ok(true);
         }
 
         for (task, revision) in tasks.into_iter() {
@@ -134,11 +142,11 @@ async fn feed_workers(
         }
     }
 
-    Ok(())
+    Ok(false)
 }
 
 #[tracing::instrument(skip_all, err(Debug))]
-async fn requeue_tasks(client: &mut KvClient) -> Result<()> {
+async fn requeue_tasks(client: &mut KvClient) -> Result<bool> {
     let now = Utc::now();
     let tasks = list_tasks(
         client,
@@ -151,6 +159,10 @@ async fn requeue_tasks(client: &mut KvClient) -> Result<()> {
     )
     .await?;
 
+    if tasks.is_empty() {
+        return Ok(true);
+    }
+
     for (task, revision) in tasks {
         const TEN_SECONDS: Duration = Duration::from_secs(10);
         if (now - task.value.last_update).to_std()? > TEN_SECONDS {
@@ -159,5 +171,5 @@ async fn requeue_tasks(client: &mut KvClient) -> Result<()> {
         }
     }
 
-    Ok(())
+    Ok(false)
 }
