@@ -35,8 +35,6 @@ enum Command {
     Show(ShowArgs),
     /// Cancel tasks
     Cancel(CancelArgs),
-    /// Wait for tasks to complete
-    Wait(WaitArgs),
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -49,7 +47,6 @@ async fn main() -> Result<()> {
         Command::List(args) => list_command(args, basti).await,
         Command::Show(args) => show_command(args, basti).await,
         Command::Cancel(args) => cancel_command(args, basti).await,
-        Command::Wait(args) => wait_command(args, basti).await,
     };
 
     if let Err(error) = result {

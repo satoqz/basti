@@ -93,13 +93,3 @@ pub async fn cancel_command(args: CancelArgs, client: BastiClient) -> Result<()>
 
     Ok(())
 }
-
-#[derive(Debug, Args)]
-pub struct WaitArgs {
-    #[clap(required = true, help = "Tasks to wait for")]
-    ids: Vec<Uuid>,
-}
-
-pub async fn wait_command(args: WaitArgs, client: BastiClient) -> Result<()> {
-    Ok(())
-}
