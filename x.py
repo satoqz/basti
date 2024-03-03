@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import click
+import os
 import subprocess
 import tomllib
 import sys
@@ -25,6 +26,14 @@ with open("inventory.toml", "rb") as f:
 @click.group()
 def cli() -> None:
     pass
+
+
+@cli.command(name="link")
+def link_cmd() -> None:
+    target = f"{os.environ["HOME"]}/.cargo/bin/x"
+    os.remove(target)
+    os.symlink(__file__, target)
+    click.echo(f"Linked x.py to {target}.")
 
 
 @cli.command(name="build")
