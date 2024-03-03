@@ -53,7 +53,7 @@ def build_cmd(service: str) -> None:
 
     click.echo(f"building image {image_tag}...")
     result = subprocess.run(
-        ["docker", "build", "-t", image_tag, "-f", dockerfile, "."],
+        ["docker", "build", "-t", image_tag, "-f", dockerfile, SOURCE_DIR],
         stdin=False,
         capture_output=True,
     )
