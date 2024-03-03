@@ -1,7 +1,8 @@
 mod key;
+mod priority;
 mod value;
 
-pub use crate::{key::*, value::*};
+pub use crate::{key::*, priority::*, value::*};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 

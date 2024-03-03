@@ -17,6 +17,7 @@ clap.workspace = true
 etcd-client.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+strum.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 tower-http.workspace = true
 tracing-subscriber.workspace = true

@@ -35,13 +35,13 @@ impl FromStr for TaskKey {
         let parts: Vec<&str> = s.split('_').collect();
 
         if parts.len() != 3 || parts[0] != Self::prefix() {
-            bail!("malformed key")
+            bail!("Malformed key")
         }
 
-        let state = TaskState::from_str(parts[1])?;
-        let id = Uuid::from_str(parts[2])?;
-
-        Ok(Self { state, id })
+        Ok(Self {
+            state: TaskState::from_str(parts[1])?,
+            id: Uuid::from_str(parts[2])?,
+        })
     }
 }
 

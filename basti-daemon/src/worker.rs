@@ -1,12 +1,11 @@
 use crate::ops::{
-    revision_based::{try_acquire_task, try_finish_task, try_progress_task, try_requeue_task},
-    simple::list_tasks,
+    acquire_task, find_task, finish_task, list_priorities, list_tasks, progress_task, requeue_task,
 };
 use anyhow::Result;
 use async_channel::{Receiver, Sender};
 use basti_task::{Task, TaskState};
 use chrono::{TimeDelta, Utc};
-use etcd_client::{GetOptions, KvClient, SortOrder, SortTarget};
+use etcd_client::KvClient;
 use std::{num::NonZeroUsize, sync::Arc, time::Duration};
 use tokio::{sync::Semaphore, task::JoinSet, time::sleep};
 
@@ -90,10 +89,10 @@ async fn work_on_task(client: &mut KvClient, mut task: Task, mut revision: i64) 
         );
 
         sleep(work_duration).await;
-        (task, revision) = try_progress_task(client, task, revision, work_duration).await?;
+        (task, revision) = progress_task(client, task, revision, work_duration).await?;
     }
 
-    try_finish_task(client, &task, revision).await?;
+    finish_task(client, &task, revision).await?;
 
     let time_taken = (Utc::now() - task.value.created_at).to_std()?;
     tracing::info!(
@@ -113,31 +112,33 @@ async fn feed_workers(
     node_name: String,
 ) -> Result<bool> {
     'outer: loop {
-        let tasks = list_tasks(
-            client,
-            Some(TaskState::Queued),
-            Some(
-                GetOptions::default()
-                    .with_sort(SortTarget::Value, SortOrder::Ascend)
-                    .with_limit(100),
-            ),
-        )
-        .await?;
-
-        if tasks.is_empty() {
+        let priorities = list_priorities(client, 100).await?;
+        if priorities.is_empty() {
             return Ok(true);
         }
 
-        for (task, revision) in tasks.into_iter() {
-            let task_id = task.key.id;
-            tracing::info!("Trying to acquire task {task_id}");
-            match try_acquire_task(client, task, revision, node_name.clone()).await {
+        for priority in priorities.into_iter() {
+            tracing::info!("Trying to find matching task for priority {}", priority.id);
+            let task = match find_task(client, priority.id).await {
+                Ok(task) => task,
+                Err(error) => {
+                    tracing::warn!(
+                        "Could not find task matching priorty {}: {:?}",
+                        priority.id,
+                        error
+                    );
+                    continue;
+                }
+            };
+
+            tracing::info!("Trying to acquire task {}", priority.id);
+            match acquire_task(client, task, node_name.clone()).await {
                 Ok((task, revision)) => {
                     tracing::info!("Acquired task {}.", task.key.id);
                     sender.send((task, revision)).await?;
                     break 'outer;
                 }
-                Err(error) => tracing::warn!("Could not acquire task {}: {:?}", task_id, error),
+                Err(error) => tracing::warn!("Could not acquire task {}: {:?}", priority.id, error),
             }
         }
     }
@@ -148,26 +149,17 @@ async fn feed_workers(
 #[tracing::instrument(skip_all, err(Debug))]
 async fn requeue_tasks(client: &mut KvClient) -> Result<bool> {
     let now = Utc::now();
-    let tasks = list_tasks(
-        client,
-        Some(TaskState::Running),
-        Some(
-            GetOptions::default()
-                .with_sort(SortTarget::Mod, SortOrder::Ascend)
-                .with_limit(100),
-        ),
-    )
-    .await?;
 
+    let tasks = list_tasks(client, Some(TaskState::Running), 100).await?;
     if tasks.is_empty() {
         return Ok(true);
     }
 
-    for (task, revision) in tasks {
+    for task in tasks {
         const TEN_SECONDS: TimeDelta = TimeDelta::seconds(10);
         if now - task.value.last_update > TEN_SECONDS {
             tracing::info!("Re-queueing task {}", task.key.id);
-            try_requeue_task(client, task, revision).await?;
+            requeue_task(client, task).await?;
         }
     }
 

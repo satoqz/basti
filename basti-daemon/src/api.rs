@@ -1,9 +1,6 @@
 use crate::{
     api_error::{ApiError, ApiErrorKind, ApiResult},
-    ops::{
-        pointer_based::{cancel_task, find_task},
-        simple::{create_task, list_tasks},
-    },
+    ops::{cancel_task, create_task, find_task, list_tasks},
 };
 use anyhow::{anyhow, Context};
 use axum::{
@@ -13,7 +10,7 @@ use axum::{
     Router,
 };
 use basti_task::{CreateTask, Task, TaskState};
-use etcd_client::{GetOptions, KvClient};
+use etcd_client::KvClient;
 use serde::Deserialize;
 use std::{fmt::Debug, net::SocketAddr};
 use tower_http::trace::{DefaultOnFailure, DefaultOnRequest, DefaultOnResponse, TraceLayer};
@@ -50,7 +47,7 @@ async fn create_task_endpoint(
     State(mut client): State<KvClient>,
     Json(payload): Json<CreateTask>,
 ) -> ApiResult<Task> {
-    let (task, _) = create_task(&mut client, payload.duration, payload.priority)
+    let task = create_task(&mut client, payload.duration, payload.priority)
         .await
         .context("Failed to create task")?;
 
@@ -60,7 +57,7 @@ async fn create_task_endpoint(
 #[derive(Debug, Deserialize)]
 struct ListTasksParams {
     state: Option<TaskState>,
-    limit: Option<u32>,
+    limit: Option<i64>,
 }
 
 #[tracing::instrument(skip(client), err(Debug))]
@@ -68,13 +65,9 @@ async fn list_tasks_endpoint(
     State(mut client): State<KvClient>,
     Query(params): Query<ListTasksParams>,
 ) -> ApiResult<Vec<Task>> {
-    let tasks = list_tasks(
-        &mut client,
-        params.state,
-        Some(GetOptions::default().with_limit(params.limit.unwrap_or(50) as i64)),
-    )
-    .await
-    .context("Failed to list tasks")?;
+    let tasks = list_tasks(&mut client, params.state, params.limit.unwrap_or(50))
+        .await
+        .context("Failed to list tasks")?;
 
     Ok((
         StatusCode::OK,
@@ -91,7 +84,7 @@ async fn find_task_endpoint(
         .await
         .context(format!("Failed to find task {id}"))?
     {
-        Some(task) => Ok((StatusCode::OK, Json(task))),
+        Some((task, _)) => Ok((StatusCode::OK, Json(task))),
         None => Err(ApiError {
             kind: ApiErrorKind::NotFound,
             inner: anyhow!("Task {id} does not exist"),

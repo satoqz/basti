@@ -1,3 +1,6 @@
-pub mod pointer_based;
-pub mod revision_based;
-pub mod simple;
+mod create;
+mod delete;
+mod read;
+mod update;
+
+pub use crate::ops::{create::*, delete::*, read::*, update::*};
