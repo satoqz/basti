@@ -4,6 +4,7 @@ use reqwest::{Method, RequestBuilder};
 use serde::de::DeserializeOwned;
 use std::time::Duration;
 use url::Url;
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct BastiClient {
@@ -44,6 +45,15 @@ impl BastiClient {
         bail!("All API endpoints are dead");
     }
 
+    pub async fn submit(&self, duration: Duration, priority: u32) -> Result<Task> {
+        let payload = CreateTaskPayload { duration, priority };
+        self.execute(|mut url| {
+            url.set_path("/api/tasks");
+            self.http_client.request(Method::POST, url).json(&payload)
+        })
+        .await
+    }
+
     pub async fn list(&self, state: Option<TaskState>) -> Result<Vec<Task>> {
         self.execute(|mut url| {
             url.set_path("/api/tasks");
@@ -58,11 +68,11 @@ impl BastiClient {
         .await
     }
 
-    pub async fn submit(&self, duration: Duration, priority: u32) -> Result<Task> {
-        let payload = CreateTaskPayload { duration, priority };
+    pub async fn find(&self, id: Uuid) -> Result<Task> {
+        let path = format!("/api/tasks/{id}");
         self.execute(|mut url| {
-            url.set_path("/api/tasks");
-            self.http_client.request(Method::POST, url).json(&payload)
+            url.set_path(&path);
+            self.http_client.request(Method::GET, url)
         })
         .await
     }

@@ -1,9 +1,10 @@
 mod client;
 mod commands;
+mod table;
 
 use crate::{
     client::BastiClient,
-    commands::{list_command, submit_command, ListArgs, SubmitArgs},
+    commands::{list_command, show_command, submit_command, ListArgs, ShowArgs, SubmitArgs},
 };
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -32,6 +33,8 @@ enum Command {
     Submit(SubmitArgs),
     /// List tasks
     List(ListArgs),
+    /// Show a specific task
+    Show(ShowArgs),
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -42,6 +45,7 @@ async fn main() -> Result<()> {
     let result = match cli.command {
         Command::Submit(args) => submit_command(args, basti).await,
         Command::List(args) => list_command(args, basti).await,
+        Command::Show(args) => show_command(args, basti).await,
     };
 
     if let Err(error) = result {

@@ -1,16 +1,10 @@
-use crate::client::BastiClient;
+use crate::{client::BastiClient, table::print_task_table};
 use anyhow::Result;
 use basti_common::task::TaskState;
 use clap::Args;
 use colored::Colorize;
 use std::time::Duration;
-use tabled::{
-    builder::Builder,
-    settings::{
-        object::{Columns, Rows},
-        Color, Style,
-    },
-};
+use uuid::Uuid;
 
 #[derive(Debug, Args)]
 pub struct SubmitArgs {
@@ -56,54 +50,19 @@ pub struct ListArgs {
 }
 
 pub async fn list_command(args: ListArgs, client: BastiClient) -> Result<()> {
-    let mut tasks = client.list(args.state).await?;
-    tasks.sort_by(|a, b| a.details.cmp(&b.details));
+    let tasks = client.list(args.state).await?;
+    print_task_table(tasks);
+    Ok(())
+}
 
-    let mut builder = Builder::new();
-    builder.push_record([
-        "ID",
-        "State",
-        "Assignee",
-        "Priority",
-        "Duration",
-        "Remaining",
-        "Progress",
-    ]);
+#[derive(Debug, Args)]
+pub struct ShowArgs {
+    #[clap(required = true, help = "Task id to find")]
+    id: Uuid,
+}
 
-    for task in tasks {
-        let progress = if task.details.duration.as_secs() == 0 {
-            0
-        } else {
-            (((task.details.duration - task.details.remaining).as_secs_f32()
-                / task.details.duration.as_secs_f32())
-                * 8 as f32) as usize
-        };
-
-        builder.push_record([
-            task.key.id.to_string(),
-            task.key.state.to_string(),
-            task.details.assignee.unwrap_or("none".into()),
-            task.details.priority.to_string(),
-            format!(
-                "{}.{:03}s",
-                task.details.duration.as_secs(),
-                task.details.duration.subsec_millis()
-            ),
-            format!(
-                "{}.{:03}s",
-                task.details.remaining.as_secs(),
-                task.details.duration.subsec_millis()
-            ),
-            "█".repeat(progress),
-        ])
-    }
-
-    let mut table = builder.build();
-    table
-        .with(Style::modern_rounded())
-        .modify(Columns::last(), Color::FG_GREEN)
-        .modify(Rows::first(), Color::FG_WHITE | Color::BOLD);
-    println!("{}", table);
-
+pub async fn show_command(args: ShowArgs, client: BastiClient) -> Result<()> {
+    let task = client.find(args.id).await?;
+    print_task_table(vec![task]);
     Ok(())
 }
