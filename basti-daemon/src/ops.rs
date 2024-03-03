@@ -7,7 +7,7 @@ use std::{str::FromStr, time::Duration};
 use uuid::Uuid;
 
 pub async fn create_task(client: &mut Client, duration: Duration, priority: u8) -> Result<Task> {
-    let task = Task::generate(priority, duration);
+    let task = Task::new(priority, duration);
     client
         .put(task.key.to_string(), serde_json::to_vec(&task)?, None)
         .await?;

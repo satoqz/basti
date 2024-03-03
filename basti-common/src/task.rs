@@ -15,8 +15,9 @@ pub struct Task {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskKey {
-    pub id: Uuid,
     pub state: TaskState,
+    pub priority: u8,
+    pub id: Uuid,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ValueEnum)]
@@ -28,13 +29,12 @@ pub enum TaskState {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TaskDetails {
-    pub priority: u8,
+    pub duration: Duration,
     pub remaining: Duration,
     pub created_at: DateTime<Utc>,
     pub last_update: DateTime<Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub assignee: Option<String>,
-    pub duration: Duration,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,19 +44,20 @@ pub struct CreateTaskPayload {
 }
 
 impl Task {
-    pub fn generate(priority: u8, duration: Duration) -> Self {
+    pub fn new(priority: u8, duration: Duration) -> Self {
         Self {
-            key: TaskKey::default(),
-            details: TaskDetails::new(priority, duration),
+            key: TaskKey::new(priority),
+            details: TaskDetails::new(duration),
         }
     }
 }
 
-impl Default for TaskKey {
-    fn default() -> Self {
+impl TaskKey {
+    fn new(priority: u8) -> Self {
         Self {
-            id: Uuid::new_v4(),
             state: TaskState::default(),
+            priority,
+            id: Uuid::new_v4(),
         }
     }
 }
@@ -68,22 +69,21 @@ impl Default for TaskState {
 }
 
 impl TaskDetails {
-    pub fn new(priority: u8, duration: Duration) -> Self {
+    pub fn new(duration: Duration) -> Self {
         let now = Utc::now();
         Self {
-            priority,
-            assignee: None,
             duration,
             remaining: duration,
             created_at: now,
             last_update: now,
+            assignee: None,
         }
     }
 }
 
 impl Display for TaskKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "task_{}_{}", self.state, self.id)
+        write!(f, "task_{}_{}_{}", self.state, self.priority, self.id)
     }
 }
 
@@ -101,13 +101,18 @@ impl FromStr for TaskKey {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = s.split('_').collect();
 
-        if parts.len() != 3 || parts[0] != "task" {
+        if parts.len() != 4 || parts[0] != "task" {
             bail!("malformed task key")
         }
 
         let state = TaskState::from_str(parts[1], false).map_err(|err| anyhow!(err))?;
-        let id = Uuid::from_str(parts[2])?;
+        let priority = parts[2].parse()?;
+        let id = Uuid::from_str(parts[3])?;
 
-        Ok(Self { id, state })
+        Ok(Self {
+            state,
+            priority,
+            id,
+        })
     }
 }
