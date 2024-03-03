@@ -1,8 +1,10 @@
 use anyhow::{bail, Result};
 use basti_common::task::{Task, TaskKey, TaskState};
 use chrono::Utc;
+use clap::ValueEnum;
 use etcd_client::{Client, Compare, CompareOp, GetOptions, Txn, TxnOp, TxnOpResponse};
 use std::{str::FromStr, time::Duration};
+use uuid::Uuid;
 
 pub async fn create_task(client: &mut Client, duration: Duration, priority: u32) -> Result<Task> {
     let task = Task::generate(priority, duration);
@@ -42,6 +44,37 @@ pub async fn list_tasks(
     }
 
     Ok(tasks)
+}
+
+pub async fn find_task_by_id(client: &mut Client, id: Uuid) -> Result<Option<Task>> {
+    let txn = Txn::new().and_then(
+        TaskState::value_variants()
+            .into_iter()
+            .map(|state| TxnOp::get(format!("task_{state}_{id}"), None))
+            .collect::<Vec<_>>(),
+    );
+
+    let response = client.txn(txn).await?;
+    if !response.succeeded() {
+        bail!("Transaction failed")
+    }
+
+    let maybe_kv = response
+        .op_responses()
+        .into_iter()
+        .flat_map(|op_response| match op_response {
+            TxnOpResponse::Get(mut get_response) => get_response.take_kvs(),
+            _ => vec![],
+        })
+        .next();
+
+    let Some(kv) = maybe_kv else { return Ok(None) };
+    let task = Task {
+        key: TaskKey::from_str(kv.key_str()?)?,
+        details: serde_json::from_str(kv.value_str()?)?,
+    };
+
+    Ok(Some(task))
 }
 
 async fn update_task_with_transaction<V>(

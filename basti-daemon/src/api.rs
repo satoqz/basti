@@ -1,49 +1,21 @@
-use crate::ops::{create_task, list_tasks};
-use anyhow::Context;
+use crate::{
+    api_error::{ApiError, ApiErrorKind, ApiResult},
+    ops::{create_task, find_task_by_id, list_tasks},
+};
+use anyhow::{anyhow, Context};
 use axum::{
-    extract::{Json, Query, State},
+    extract::{Json, Path, Query, State},
     http::StatusCode,
-    response::{IntoResponse, Response},
     routing::{get, post},
     Router,
 };
 use basti_common::task::{CreateTaskPayload, Task, TaskState};
 use etcd_client::Client;
 use serde::Deserialize;
-use std::{
-    fmt::{Debug, Display},
-    net::SocketAddr,
-};
+use std::{fmt::Debug, net::SocketAddr};
 use tower_http::trace::{DefaultOnFailure, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::Level;
-
-struct ApiError(anyhow::Error);
-
-impl Display for ApiError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl Debug for ApiError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.0)
-    }
-}
-
-impl IntoResponse for ApiError {
-    fn into_response(self) -> Response {
-        (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()).into_response()
-    }
-}
-
-impl From<anyhow::Error> for ApiError {
-    fn from(value: anyhow::Error) -> Self {
-        Self(value)
-    }
-}
-
-type ApiResult<T> = Result<(StatusCode, Json<T>), ApiError>;
+use uuid::Uuid;
 
 #[tracing::instrument(skip_all)]
 pub async fn run(addr: SocketAddr, client: Client) -> anyhow::Result<()> {
@@ -53,8 +25,9 @@ pub async fn run(addr: SocketAddr, client: Client) -> anyhow::Result<()> {
         .on_failure(DefaultOnFailure::new().level(Level::WARN));
 
     let app = Router::new()
-        .route("/api/tasks", get(list_tasks_endpoint))
         .route("/api/tasks", post(create_task_endpoint))
+        .route("/api/tasks", get(list_tasks_endpoint))
+        .route("/api/tasks/:id", get(find_task_endpoint))
         .layer(trace_layer)
         .with_state(client);
 
@@ -98,4 +71,18 @@ async fn list_tasks_endpoint(
         StatusCode::OK,
         Json(tasks.into_iter().map(|(task, _)| task).collect()),
     ))
+}
+
+#[tracing::instrument(skip(client), err(Debug))]
+async fn find_task_endpoint(
+    State(mut client): State<Client>,
+    Path(id): Path<Uuid>,
+) -> ApiResult<Task> {
+    match find_task_by_id(&mut client, id).await? {
+        Some(task) => Ok((StatusCode::OK, Json(task))),
+        None => Err(ApiError {
+            kind: ApiErrorKind::NotFound,
+            inner: anyhow!("Task does not exist"),
+        }),
+    }
 }
