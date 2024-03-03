@@ -10,10 +10,10 @@ use uuid::Uuid;
 pub struct SubmitArgs {
     #[clap(
         long,
-        default_value = "5",
+        default_value = "16",
         help = "Task priority, 0 = highest priority"
     )]
-    priority: u32,
+    priority: u8,
 
     #[clap(long, default_value = "10", help = "Task duration in seconds")]
     seconds: u64,

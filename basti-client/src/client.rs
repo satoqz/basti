@@ -45,7 +45,7 @@ impl BastiClient {
         bail!("All API endpoints are dead");
     }
 
-    pub async fn submit(&self, duration: Duration, priority: u32) -> Result<Task> {
+    pub async fn submit(&self, duration: Duration, priority: u8) -> Result<Task> {
         let payload = CreateTaskPayload { duration, priority };
         self.execute(|mut url| {
             url.set_path("/api/tasks");

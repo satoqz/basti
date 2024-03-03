@@ -6,7 +6,7 @@ use etcd_client::{Client, Compare, CompareOp, GetOptions, Txn, TxnOp, TxnOpRespo
 use std::{str::FromStr, time::Duration};
 use uuid::Uuid;
 
-pub async fn create_task(client: &mut Client, duration: Duration, priority: u32) -> Result<Task> {
+pub async fn create_task(client: &mut Client, duration: Duration, priority: u8) -> Result<Task> {
     let task = Task::generate(priority, duration);
     client
         .put(task.key.to_string(), serde_json::to_vec(&task)?, None)

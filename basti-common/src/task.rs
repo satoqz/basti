@@ -28,7 +28,7 @@ pub enum TaskState {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TaskDetails {
-    pub priority: u32,
+    pub priority: u8,
     pub remaining: Duration,
     pub created_at: DateTime<Utc>,
     pub last_update: DateTime<Utc>,
@@ -40,12 +40,11 @@ pub struct TaskDetails {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateTaskPayload {
     pub duration: Duration,
-    #[serde(default)]
-    pub priority: u32,
+    pub priority: u8,
 }
 
 impl Task {
-    pub fn generate(priority: u32, duration: Duration) -> Self {
+    pub fn generate(priority: u8, duration: Duration) -> Self {
         Self {
             key: TaskKey::default(),
             details: TaskDetails::new(priority, duration),
@@ -69,7 +68,7 @@ impl Default for TaskState {
 }
 
 impl TaskDetails {
-    pub fn new(priority: u32, duration: Duration) -> Self {
+    pub fn new(priority: u8, duration: Duration) -> Self {
         let now = Utc::now();
         Self {
             priority,
