@@ -296,6 +296,7 @@ dependencies = [
  "chrono",
  "clap",
  "etcd-client",
+ "futures",
  "serde",
  "serde_json",
  "strum",

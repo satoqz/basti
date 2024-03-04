@@ -6,22 +6,20 @@ use basti_task::{Task, TaskState};
 use chrono::{TimeDelta, Utc};
 use etcd_client::KvClient;
 use std::{num::NonZeroUsize, time::Duration};
-use tokio::{sync::mpsc, task::JoinSet, time::sleep};
+use tokio::{sync::mpsc, time::sleep};
 
 const WORK_TIMEOUT_DELTA: TimeDelta = TimeDelta::seconds(10);
 const WORK_FEEDBACK_INTERVAL: Duration = Duration::from_secs(5);
 
-pub async fn run_detached(amount: NonZeroUsize, client: KvClient, node_name: String) {
-    let mut join_set = JoinSet::new();
-
+pub async fn run(amount: NonZeroUsize, client: KvClient, node_name: String) {
     let (work_sender, work_receiver) = async_channel::bounded(1);
     let (work_request_sender, mut work_request_receiver) = mpsc::channel(amount.get());
 
-    for _ in 0..amount.get() {
+    let worker_handles = (0..amount.get()).map(|_| {
         let task_receiver: async_channel::Receiver<(Task, Revision)> = work_receiver.clone();
         let work_request_sender: mpsc::Sender<()> = work_request_sender.clone();
         let mut client = client.clone();
-        join_set.spawn(async move {
+        async move {
             loop {
                 work_request_sender.send(()).await.unwrap();
                 let (task, revision) = task_receiver.recv().await.unwrap();
@@ -30,13 +28,13 @@ pub async fn run_detached(amount: NonZeroUsize, client: KvClient, node_name: Str
                     tracing::error!("Failed to work on task {task_id}: {error:?}")
                 }
             }
-        });
-    }
+        }
+    });
 
     let mut find_work_client = client.clone();
-    let mut requeue_tasks_client = client;
+    let mut requeue_tasks_client = client.clone();
 
-    join_set.spawn(async move {
+    let find_work_handle = async move {
         work_request_receiver.recv().await.unwrap();
         loop {
             match find_work(&mut find_work_client, node_name.clone()).await {
@@ -51,9 +49,9 @@ pub async fn run_detached(amount: NonZeroUsize, client: KvClient, node_name: Str
                 }
             };
         }
-    });
+    };
 
-    join_set.spawn(async move {
+    let requeue_tasks_handle = async move {
         loop {
             match requeue_tasks(&mut requeue_tasks_client).await {
                 Err(error) => {
@@ -67,9 +65,13 @@ pub async fn run_detached(amount: NonZeroUsize, client: KvClient, node_name: Str
                 }
             };
         }
-    });
+    };
 
-    join_set.detach_all();
+    tokio::join!(
+        futures::future::join_all(worker_handles),
+        find_work_handle,
+        requeue_tasks_handle
+    );
 }
 
 async fn work_on_task(
