@@ -7,9 +7,7 @@ use tabled::{
     },
 };
 
-pub fn print_task_table(mut tasks: Vec<Task>) {
-    tasks.sort_by(|a, b| a.value.last_update.cmp(&b.value.last_update));
-
+pub fn print_task_table(tasks: Vec<Task>) {
     let mut builder = Builder::new();
     builder.push_record([
         "ID",

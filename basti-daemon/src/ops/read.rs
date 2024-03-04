@@ -17,7 +17,8 @@ pub async fn list_priorities(
             Some(
                 GetOptions::default()
                     .with_limit(limit)
-                    .with_sort(SortTarget::Key, SortOrder::Ascend),
+                    .with_sort(SortTarget::Key, SortOrder::Ascend)
+                    .with_prefix(),
             ),
         )
         .await?;
@@ -41,7 +42,10 @@ pub async fn list_tasks(
     };
 
     let response = client
-        .get(key, Some(GetOptions::default().with_limit(limit)))
+        .get(
+            key,
+            Some(GetOptions::default().with_limit(limit).with_prefix()),
+        )
         .await?;
 
     let mut tasks = Vec::new();
