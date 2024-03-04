@@ -136,6 +136,14 @@ async fn find_work(
             continue;
         };
 
+        if task.key.state != TaskState::Queued {
+            tracing::info!(
+                "Could not acquire task {}, it was modified by someone else",
+                priority.id
+            );
+            continue;
+        }
+
         tracing::info!("Trying to acquire task {}", priority.id);
         match acquire_task(client, task, revision, node_name.clone()).await {
             Err(MaybeRevisionError::BadRevision) => tracing::info!(

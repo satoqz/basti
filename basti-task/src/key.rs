@@ -45,7 +45,9 @@ impl FromStr for TaskKey {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, EnumString, EnumIter, StrumDisplay)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumString, EnumIter, StrumDisplay,
+)]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum TaskState {
