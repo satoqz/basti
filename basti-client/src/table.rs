@@ -1,4 +1,5 @@
-use basti_task::Task;
+use basti_task::{Task, TaskState};
+use chrono::Utc;
 use tabled::{
     builder::Builder,
     settings::{
@@ -6,6 +7,8 @@ use tabled::{
         Color, Style,
     },
 };
+
+const PROGRESS_BAR_LENGTH: usize = 16;
 
 pub fn print_task_table(tasks: Vec<Task>) {
     let mut builder = Builder::new();
@@ -19,13 +22,23 @@ pub fn print_task_table(tasks: Vec<Task>) {
         "Progress",
     ]);
 
+    let now = Utc::now();
+
     for task in tasks {
+        let optimistic_remaining = if task.key.state == TaskState::Running {
+            task.value
+                .remaining
+                .saturating_sub((now - task.value.last_update).to_std().unwrap_or_default())
+        } else {
+            task.value.remaining
+        };
+
         let progress = if task.value.duration.as_secs() == 0 {
             0
         } else {
-            (((task.value.duration - task.value.remaining).as_secs_f32()
+            (((task.value.duration - optimistic_remaining).as_secs_f32()
                 / task.value.duration.as_secs_f32())
-                * 8_f32) as usize
+                * (PROGRESS_BAR_LENGTH) as f32) as usize
         };
 
         builder.push_record([
@@ -40,10 +53,14 @@ pub fn print_task_table(tasks: Vec<Task>) {
             ),
             format!(
                 "{}.{:03}s",
-                task.value.remaining.as_secs(),
-                task.value.duration.subsec_millis()
+                optimistic_remaining.as_secs(),
+                optimistic_remaining.subsec_millis()
             ),
-            "█".repeat(progress),
+            format!(
+                "{}{}",
+                "█".repeat(progress),
+                " ".repeat(PROGRESS_BAR_LENGTH - progress)
+            ),
         ])
     }
 
