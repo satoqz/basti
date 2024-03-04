@@ -6,11 +6,11 @@ use std::{fmt::Display, str::FromStr, time::Duration};
 pub struct TaskValue {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub assignee: Option<String>,
-    pub duration: Duration,
-    pub priority: TaskPriority,
-    pub created_at: DateTime<Utc>,
     pub remaining: Duration,
     pub last_update: DateTime<Utc>,
+    pub priority: TaskPriority,
+    pub created_at: DateTime<Utc>,
+    pub duration: Duration,
 }
 
 impl TaskValue {

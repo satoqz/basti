@@ -68,8 +68,8 @@ pub async fn list_command(args: ListArgs, client: BastiClient) -> anyhow::Result
     }
 
     tasks.sort_by(|a, b| match (a.key.state, b.key.state) {
-        (TaskState::Queued, TaskState::Running) => Ordering::Less,
-        (TaskState::Running, TaskState::Queued) => Ordering::Greater,
+        (TaskState::Queued, TaskState::Running) => Ordering::Greater,
+        (TaskState::Running, TaskState::Queued) => Ordering::Less,
         _ => a.value.cmp(&b.value),
     });
 
