@@ -2,50 +2,49 @@ use crate::ops::{
     acquire_task, find_task, finish_task, list_priorities, list_tasks, progress_task, requeue_task,
     MaybeRevisionError, Revision,
 };
-use async_channel::{Receiver, Sender};
 use basti_task::{Task, TaskState};
 use chrono::{TimeDelta, Utc};
 use etcd_client::KvClient;
-use std::{num::NonZeroUsize, sync::Arc, time::Duration};
-use tokio::{sync::Semaphore, task::JoinSet, time::sleep};
+use std::{num::NonZeroUsize, time::Duration};
+use tokio::{sync::mpsc, task::JoinSet, time::sleep};
 
-#[tracing::instrument(skip_all)]
 pub async fn run_detached(amount: NonZeroUsize, client: KvClient, node_name: String) {
     let mut join_set = JoinSet::new();
-    let semaphore = Arc::new(Semaphore::new(amount.get()));
-    let (sender, receiver) = async_channel::bounded(1);
+
+    let (work_sender, work_receiver) = async_channel::bounded(1);
+    let (work_request_sender, mut work_request_receiver) = mpsc::channel(amount.get());
 
     for _ in 0..amount.get() {
-        let semaphore = semaphore.clone();
-        let receiver: Receiver<(Task, Revision)> = receiver.clone();
+        let task_receiver: async_channel::Receiver<(Task, Revision)> = work_receiver.clone();
+        let work_request_sender: mpsc::Sender<()> = work_request_sender.clone();
         let mut client = client.clone();
         join_set.spawn(async move {
-            while let Ok((task, revision)) = receiver.recv().await {
-                let _permit = semaphore.acquire().await.unwrap();
+            loop {
+                work_request_sender.send(()).await.unwrap();
+                let (task, revision) = task_receiver.recv().await.unwrap();
                 let task_id = task.key.id;
-                if work_on_task(&mut client, task, revision).await.is_err() {
-                    tracing::warn!("Lost work on task {task_id}")
+                if let Err(error) = work_on_task(&mut client, task, revision).await {
+                    tracing::error!("Failed to work on task {task_id}: {error:?}")
                 }
             }
         });
     }
 
-    let mut feeding_client = client.clone();
-    let mut requeueing_client = client;
+    let mut find_work_client = client.clone();
+    let mut requeue_tasks_client = client;
 
     join_set.spawn(async move {
-        let semaphore = semaphore.clone();
+        work_request_receiver.recv().await.unwrap();
         loop {
-            let _permit = semaphore.acquire().await.unwrap();
-            match feed_workers(&mut feeding_client, &sender, node_name.clone()).await {
-                Ok(queue_empty) => {
-                    if queue_empty {
-                        sleep(Duration::from_millis(500)).await
-                    }
-                }
-                Err(_) => {
-                    tracing::warn!("Failed to feed workers, waiting 5 seconds");
+            match find_work(&mut find_work_client, node_name.clone()).await {
+                Err(error) => {
+                    tracing::error!("Failed to find work: {error:?}");
                     sleep(Duration::from_secs(5)).await;
+                }
+                Ok(None) => sleep(Duration::from_millis(500)).await,
+                Ok(Some(work)) => {
+                    work_sender.send(work).await.unwrap();
+                    work_request_receiver.recv().await.unwrap();
                 }
             };
         }
@@ -53,15 +52,15 @@ pub async fn run_detached(amount: NonZeroUsize, client: KvClient, node_name: Str
 
     join_set.spawn(async move {
         loop {
-            match requeue_tasks(&mut requeueing_client).await {
+            match requeue_tasks(&mut requeue_tasks_client).await {
+                Err(error) => {
+                    tracing::error!("Failed to requeue tasks: {error:?}");
+                    sleep(Duration::from_secs(5)).await;
+                }
                 Ok(queue_empty) => {
                     if queue_empty {
                         sleep(Duration::from_millis(500)).await
                     }
-                }
-                Err(_) => {
-                    tracing::warn!("Failed to requeue tasks, waiting 5 seconds");
-                    sleep(Duration::from_secs(5)).await;
                 }
             };
         }
@@ -70,7 +69,6 @@ pub async fn run_detached(amount: NonZeroUsize, client: KvClient, node_name: Str
     join_set.detach_all();
 }
 
-#[tracing::instrument(skip_all, err(Debug))]
 async fn work_on_task(
     client: &mut KvClient,
     mut task: Task,
@@ -125,51 +123,42 @@ async fn work_on_task(
     Ok(())
 }
 
-#[tracing::instrument(skip_all, err(Debug))]
-async fn feed_workers(
+async fn find_work(
     client: &mut KvClient,
-    sender: &Sender<(Task, Revision)>,
     node_name: String,
-) -> anyhow::Result<bool> {
-    'outer: loop {
-        let priorities = list_priorities(client, 100).await?;
-        if priorities.is_empty() {
-            return Ok(true);
-        }
+) -> anyhow::Result<Option<(Task, Revision)>> {
+    let priorities = list_priorities(client, 10).await?;
 
-        for priority in priorities.into_iter() {
-            tracing::info!("Trying to find matching task for priority {}", priority.id);
-            let Some((task, revision)) = find_task(client, priority.id).await? else {
-                tracing::warn!("Could not find task matching priorty {}", priority.id);
-                continue;
-            };
+    for priority in priorities.into_iter() {
+        tracing::info!("Trying to find matching task for priority {}", priority.id);
+        let Some((task, revision)) = find_task(client, priority.id).await? else {
+            tracing::warn!("Could not find task matching priorty {}", priority.id);
+            continue;
+        };
 
-            tracing::info!("Trying to acquire task {}", priority.id);
-            match acquire_task(client, task, revision, node_name.clone()).await {
-                Ok((task, revision)) => {
-                    tracing::info!("Acquired task {}", task.key.id);
-                    sender.send((task, revision)).await?;
-                    break 'outer;
-                }
-                Err(MaybeRevisionError::BadRevision) => tracing::info!(
-                    "Could not acquire task {}, it was modified by someone else",
-                    priority.id
-                ),
-                Err(MaybeRevisionError::Other(error)) => {
-                    tracing::error!("Failed to acquire task {}: {:?}", priority.id, error)
-                }
+        tracing::info!("Trying to acquire task {}", priority.id);
+        match acquire_task(client, task, revision, node_name.clone()).await {
+            Err(MaybeRevisionError::BadRevision) => tracing::info!(
+                "Could not acquire task {}, it was modified by someone else",
+                priority.id
+            ),
+            Err(MaybeRevisionError::Other(error)) => {
+                tracing::error!("Failed to acquire task {}: {:?}", priority.id, error)
+            }
+            Ok((task, revision)) => {
+                tracing::info!("Acquired task {}", task.key.id);
+                return Ok(Some((task, revision)));
             }
         }
     }
 
-    Ok(false)
+    Ok(None)
 }
 
-#[tracing::instrument(skip_all, err(Debug))]
 async fn requeue_tasks(client: &mut KvClient) -> anyhow::Result<bool> {
     let now = Utc::now();
 
-    let tasks = list_tasks(client, Some(TaskState::Running), 100).await?;
+    let tasks = list_tasks(client, Some(TaskState::Running), 10).await?;
     if tasks.is_empty() {
         return Ok(true);
     }
