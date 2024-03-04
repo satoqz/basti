@@ -10,7 +10,7 @@ pub async fn cancel_task(client: &mut KvClient, id: Uuid) -> anyhow::Result<Opti
     };
 
     let operations = TaskState::VARIANTS
-        .into_iter()
+        .iter()
         .map(|state| TxnOp::delete(TaskKey { state: *state, id }.to_string(), None))
         .collect::<Vec<_>>();
 
