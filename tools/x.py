@@ -8,16 +8,19 @@ import sys
 
 SERVICES = ["bastid", "etcd"]
 
-SOURCE_DIR = os.path.dirname(os.path.realpath(__file__))
-INVENTORY_PATH = f"{SOURCE_DIR}/inventory.toml"
+TOOLS_DIR = os.path.dirname(os.path.realpath(__file__))
+SOURCE_DIR = os.path.join(TOOLS_DIR, "..")
+DOCKER_DIR = os.path.join(TOOLS_DIR, "../docker")
 
-BASTID_DOCKERFILE = f"{SOURCE_DIR}/docker/bastid.Dockerfile"
-BASTID_IMAGE_TAG = "toasterwaver/bastid:latest"
+INVENTORY_PATH = f"{TOOLS_DIR}/inventory.toml"
+
+BASTID_DOCKERFILE = f"{DOCKER_DIR}/bastid.Dockerfile"
+BASTID_IMAGE_TAG = "satoqz.net/bastid:latest"
 BASTID_PORT = 1337
 BASTID_WORKERS = 3
 
-ETCD_DOCKERFILE = f"{SOURCE_DIR}/docker/etcd.Dockerfile"
-ETCD_IMAGE_TAG = "toasterwaver/etcd:latest"
+ETCD_DOCKERFILE = f"{DOCKER_DIR}/etcd.Dockerfile"
+ETCD_IMAGE_TAG = "satoqz.net/etcd:latest"
 ETCD_CLUSTER_TOKEN = "basti-etcd-cluster"
 ETCD_CLIENT_PORT = 2379
 ETCD_PEER_PORT = 2380
@@ -31,14 +34,6 @@ def cli() -> None:
     pass
 
 
-@cli.command(name="link")
-def link_cmd() -> None:
-    target = f"{os.environ["HOME"]}/.cargo/bin/x"
-    os.remove(target)
-    os.symlink(__file__, target)
-    click.echo(f"Linked x.py to {target}.")
-
-
 @cli.command(name="build")
 @click.argument(
     "service",
@@ -50,20 +45,10 @@ def build_cmd(service: str) -> None:
         "bastid": (BASTID_IMAGE_TAG, BASTID_DOCKERFILE),
         "etcd": (ETCD_IMAGE_TAG, ETCD_DOCKERFILE),
     }[service]
-
-    click.echo(f"building image {image_tag}...")
-    result = subprocess.run(
+    subprocess.run(
         ["docker", "build", "-t", image_tag, "-f", dockerfile, SOURCE_DIR],
-        stdin=False,
-        capture_output=True,
+        check=True,
     )
-
-    if result.returncode == 0:
-        click.echo(f"built image {image_tag}.")
-    else:
-        click.echo("failed building image:")
-        click.echo(result.stderr)
-        sys.exit(1)
 
 
 @cli.command(name="deploy")
