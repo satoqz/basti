@@ -2,7 +2,7 @@ use crate::{client::BastiClient, table::print_task_table, util::Compact};
 use basti_task::{TaskPriority, TaskState};
 use clap::Args;
 use colored::Colorize;
-use std::time::Duration;
+use std::{cmp::Ordering, time::Duration};
 use uuid::Uuid;
 
 #[derive(Debug, Args)]
@@ -57,7 +57,8 @@ pub struct ListArgs {
 }
 
 pub async fn list_command(args: ListArgs, client: BastiClient) -> anyhow::Result<()> {
-    let tasks = client.list(args.state, Some(args.limit)).await?;
+    let mut tasks = client.list(args.state, Some(args.limit)).await?;
+
     if tasks.len() == args.limit as usize {
         println!(
             " {} Number of tasks is truncated to limit of {}",
@@ -65,6 +66,13 @@ pub async fn list_command(args: ListArgs, client: BastiClient) -> anyhow::Result
             args.limit
         )
     }
+
+    tasks.sort_by(|a, b| match (a.key.state, b.key.state) {
+        (TaskState::Queued, TaskState::Running) => Ordering::Less,
+        (TaskState::Running, TaskState::Queued) => Ordering::Greater,
+        _ => a.value.cmp(&b.value),
+    });
+
     print_task_table(tasks);
     Ok(())
 }

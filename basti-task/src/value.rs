@@ -2,15 +2,15 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, str::FromStr, time::Duration};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct TaskValue {
-    pub duration: Duration,
-    pub remaining: Duration,
-    pub created_at: DateTime<Utc>,
-    pub last_update: DateTime<Utc>,
-    pub priority: TaskPriority,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub assignee: Option<String>,
+    pub duration: Duration,
+    pub priority: TaskPriority,
+    pub created_at: DateTime<Utc>,
+    pub remaining: Duration,
+    pub last_update: DateTime<Utc>,
 }
 
 impl TaskValue {
@@ -27,7 +27,7 @@ impl TaskValue {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct TaskPriority(pub u8);
 
