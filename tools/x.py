@@ -21,6 +21,8 @@ BASTID_WORKERS = 3
 
 ETCD_DOCKERFILE = f"{DOCKER_DIR}/etcd.Dockerfile"
 ETCD_IMAGE_TAG = "satoqz.net/etcd:latest"
+ETCD_VOLUME_NAME = "basti-etcd-data"
+ETCD_VOLUME_MOUNT = "/data"
 ETCD_CLUSTER_TOKEN = "basti-etcd-cluster"
 ETCD_CLIENT_PORT = 2379
 ETCD_PEER_PORT = 2380
@@ -115,26 +117,19 @@ def start_cmd(
     if not no_stop:
         ctx.invoke(stop_cmd, service=service, group=group)
 
-    container_image = {
-        "bastid": BASTID_IMAGE_TAG,
-        "etcd": ETCD_IMAGE_TAG,
+    container_image, container_ports, container_volumes = {
+        "bastid": (BASTID_IMAGE_TAG, [BASTID_PORT], []),
+        "etcd": (
+            ETCD_IMAGE_TAG,
+            [ETCD_CLIENT_PORT, ETCD_PEER_PORT],
+            [(ETCD_VOLUME_NAME, ETCD_VOLUME_MOUNT)],
+        ),
     }[service]
 
-    container_ports = {
-        "bastid": [BASTID_PORT],
-        "etcd": [ETCD_CLIENT_PORT, ETCD_PEER_PORT],
-    }[service]
-
-    etcd_cluster_string = {
-        "bastid": lambda: ",".join(
-            f"http://{INVENTORY[group][node]["ip"]}:{ETCD_CLIENT_PORT}"
-            for node in INVENTORY[group]
-        ),
-        "etcd": lambda: ",".join(
-            f"{node}=http://{INVENTORY[group][node]["ip"]}:{ETCD_PEER_PORT}"
-            for node in INVENTORY[group]
-        ),
-    }[service]()
+    etcd_cluster_string = ",".join(
+        f"{node}=http://{INVENTORY[group][node]["ip"]}:{ETCD_PEER_PORT}"
+        for node in INVENTORY[group]
+    )
 
     for node in INVENTORY[group]:
         node_details = INVENTORY[group][node]
@@ -150,6 +145,7 @@ def start_cmd(
                 f"--name=basti-{service}",
             ]
             + [f"-p={port}:{port}" for port in container_ports]
+            + [f"-v={volume}:{mount}" for volume, mount in container_volumes]
             + [container_image, service]
         )
 
@@ -157,11 +153,13 @@ def start_cmd(
             "bastid": lambda: [
                 f"--workers={BASTID_WORKERS}",
                 f"--listen=0.0.0.0:{BASTID_PORT}",
-                f"--etcd={etcd_cluster_string}",
+                f"--etcd=http://{node_details["ip"]}:{ETCD_CLIENT_PORT}",
                 f"--name={node}",
             ],
             "etcd": lambda: [
                 f"--name={node}",
+                f"--data-dir={ETCD_VOLUME_MOUNT}/data",
+                f"--wal-dir={ETCD_VOLUME_MOUNT}/wal",
                 f"--initial-advertise-peer-urls=http://{node_details["ip"]}:{ETCD_PEER_PORT}",
                 f"--listen-peer-urls=http://0.0.0.0:{ETCD_PEER_PORT}",
                 f"--listen-client-urls=http://0.0.0.0:{ETCD_CLIENT_PORT}",
