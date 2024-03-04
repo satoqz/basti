@@ -46,6 +46,6 @@ impl Display for TaskPriority {
 impl FromStr for TaskPriority {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> anyhow::Result<Self> {
-        Ok(Self(s.trim_start_matches('0').parse()?))
+        Ok(Self(s.parse()?))
     }
 }
