@@ -1,16 +1,17 @@
 use super::{find_task, MaybeRevisionError, Revision};
 use basti_task::{Task, TaskKey, TaskState};
 use etcd_client::{Compare, CompareOp, KvClient, Txn, TxnOp};
-use strum::IntoEnumIterator;
+use strum::VariantArray;
 use uuid::Uuid;
 
 pub async fn cancel_task(client: &mut KvClient, id: Uuid) -> anyhow::Result<Option<Task>> {
-    let Some((task, _)) = find_task(client, id).await? else {
+    let Some((task, _)) = find_task(client, id, TaskState::VARIANTS).await? else {
         return Ok(None);
     };
 
-    let operations = TaskState::iter()
-        .map(|state| TxnOp::delete(TaskKey { state, id }.to_string(), None))
+    let operations = TaskState::VARIANTS
+        .into_iter()
+        .map(|state| TxnOp::delete(TaskKey { state: *state, id }.to_string(), None))
         .collect::<Vec<_>>();
 
     let txn = Txn::new().and_then(operations);

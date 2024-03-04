@@ -132,18 +132,11 @@ async fn find_work(
 
     for priority in priorities.into_iter() {
         tracing::info!("Trying to find matching task for priority {}", priority.id);
-        let Some((task, revision)) = find_task(client, priority.id).await? else {
+        let Some((task, revision)) = find_task(client, priority.id, [&TaskState::Queued]).await?
+        else {
             tracing::warn!("Could not find task matching priorty {}", priority.id);
             continue;
         };
-
-        if task.key.state != TaskState::Queued {
-            tracing::info!(
-                "Could not acquire task {}, it was modified by someone else",
-                priority.id
-            );
-            continue;
-        }
 
         tracing::info!("Trying to acquire task {}", priority.id);
         match acquire_task(client, task, revision, node_name.clone()).await {

@@ -10,6 +10,7 @@ use basti_task::{CreateTask, Task, TaskState};
 use etcd_client::KvClient;
 use serde::Deserialize;
 use std::fmt::Debug;
+use strum::VariantArray;
 use uuid::Uuid;
 
 #[tracing::instrument(skip(client), err(Debug))]
@@ -50,7 +51,7 @@ pub async fn find_task_endpoint(
     State(mut client): State<KvClient>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Task> {
-    match find_task(&mut client, id)
+    match find_task(&mut client, id, TaskState::VARIANTS)
         .await
         .context(format!("Failed to find task {id}"))?
     {

@@ -1,7 +1,7 @@
 use anyhow::bail;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, str::FromStr};
-use strum_macros::{Display as StrumDisplay, EnumIter, EnumString};
+use strum_macros::{Display as StrumDisplay, EnumString, VariantArray};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,7 +46,16 @@ impl FromStr for TaskKey {
 }
 
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumString, EnumIter, StrumDisplay,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    EnumString,
+    VariantArray,
+    StrumDisplay,
 )]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]

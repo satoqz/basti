@@ -2,7 +2,7 @@ use anyhow::bail;
 use basti_task::{PriorityKey, Task, TaskKey, TaskState};
 use etcd_client::{GetOptions, KvClient, SortOrder, SortTarget, Txn, TxnOp, TxnOpResponse};
 use std::str::FromStr;
-use strum::IntoEnumIterator;
+use strum::VariantArray;
 use uuid::Uuid;
 
 use super::Revision;
@@ -62,13 +62,18 @@ pub async fn list_tasks(
     Ok(tasks)
 }
 
-pub async fn find_task(
+pub async fn find_task<'a, S>(
     client: &mut KvClient,
     id: Uuid,
-) -> anyhow::Result<Option<(Task, Revision)>> {
+    try_states: S,
+) -> anyhow::Result<Option<(Task, Revision)>>
+where
+    S: IntoIterator<Item = &'a TaskState>,
+{
     let txn = Txn::new().and_then(
-        TaskState::iter()
-            .map(|state| TxnOp::get(TaskKey { id, state }.to_string(), None))
+        try_states
+            .into_iter()
+            .map(|state| TxnOp::get(TaskKey { state: *state, id }.to_string(), None))
             .collect::<Vec<_>>(),
     );
 
