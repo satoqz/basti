@@ -1,5 +1,6 @@
 use crate::ops::{
     acquire_task, find_task, finish_task, list_priorities, list_tasks, progress_task, requeue_task,
+    MaybeRevisionError, Revision,
 };
 use async_channel::{Receiver, Sender};
 use basti_task::{Task, TaskState};
@@ -16,7 +17,7 @@ pub async fn run_detached(amount: NonZeroUsize, client: KvClient, node_name: Str
 
     for _ in 0..amount.get() {
         let semaphore = semaphore.clone();
-        let receiver: Receiver<(Task, i64)> = receiver.clone();
+        let receiver: Receiver<(Task, Revision)> = receiver.clone();
         let mut client = client.clone();
         join_set.spawn(async move {
             while let Ok((task, revision)) = receiver.recv().await {
@@ -73,8 +74,10 @@ pub async fn run_detached(amount: NonZeroUsize, client: KvClient, node_name: Str
 async fn work_on_task(
     client: &mut KvClient,
     mut task: Task,
-    mut revision: i64,
+    mut revision: Revision,
 ) -> anyhow::Result<()> {
+    let task_id = task.key.id;
+
     while !task.value.remaining.is_zero() {
         const ONE_SECOND: Duration = Duration::from_secs(1);
 
@@ -92,18 +95,32 @@ async fn work_on_task(
         );
 
         sleep(work_duration).await;
-        (task, revision) = progress_task(client, task, revision, work_duration).await?;
+        (task, revision) = match progress_task(client, task, revision, work_duration).await {
+            Err(MaybeRevisionError::Other(error)) => return Err(error),
+            Err(MaybeRevisionError::BadRevision) => {
+                tracing::info!("Could not progress task {task_id}, it was modified by someone else (either requeued or canceled)");
+                return Ok(());
+            }
+            Ok(update) => update,
+        };
     }
 
-    finish_task(client, &task, revision).await?;
-
-    let time_taken = (Utc::now() - task.value.created_at).to_std()?;
-    tracing::info!(
-        "Finished task {} after {}.{:03}s",
-        task.key.id,
-        time_taken.as_secs(),
-        time_taken.subsec_millis()
-    );
+    match finish_task(client, &task.key ,revision).await {
+        Err(MaybeRevisionError::Other(error)) => return Err(error),
+        Err(MaybeRevisionError::BadRevision) => tracing::info!(
+            "Could not finish task {}, it was modified by someone else (either requeued or canceled)",
+            task.key.id
+        ),
+        Ok(_) => {
+            let time_taken = (Utc::now() - task.value.created_at).to_std()?;
+            tracing::info!(
+                "Finished task {} after {}.{:03}s",
+                task.key.id,
+                time_taken.as_secs(),
+                time_taken.subsec_millis()
+            );
+        }
+    };
 
     Ok(())
 }
@@ -111,7 +128,7 @@ async fn work_on_task(
 #[tracing::instrument(skip_all, err(Debug))]
 async fn feed_workers(
     client: &mut KvClient,
-    sender: &Sender<(Task, i64)>,
+    sender: &Sender<(Task, Revision)>,
     node_name: String,
 ) -> anyhow::Result<bool> {
     'outer: loop {
@@ -122,19 +139,25 @@ async fn feed_workers(
 
         for priority in priorities.into_iter() {
             tracing::info!("Trying to find matching task for priority {}", priority.id);
-            let Some(task) = find_task(client, priority.id).await? else {
+            let Some((task, revision)) = find_task(client, priority.id).await? else {
                 tracing::warn!("Could not find task matching priorty {}", priority.id);
                 continue;
             };
 
             tracing::info!("Trying to acquire task {}", priority.id);
-            match acquire_task(client, task, node_name.clone()).await {
+            match acquire_task(client, task, revision, node_name.clone()).await {
                 Ok((task, revision)) => {
-                    tracing::info!("Acquired task {}.", task.key.id);
+                    tracing::info!("Acquired task {}", task.key.id);
                     sender.send((task, revision)).await?;
                     break 'outer;
                 }
-                Err(error) => tracing::warn!("Could not acquire task {}: {:?}", priority.id, error),
+                Err(MaybeRevisionError::BadRevision) => tracing::info!(
+                    "Could not acquire task {}, it was modified by someone else",
+                    priority.id
+                ),
+                Err(MaybeRevisionError::Other(error)) => {
+                    tracing::error!("Failed to acquire task {}: {:?}", priority.id, error)
+                }
             }
         }
     }
@@ -151,11 +174,22 @@ async fn requeue_tasks(client: &mut KvClient) -> anyhow::Result<bool> {
         return Ok(true);
     }
 
-    for task in tasks {
+    for (task, revision) in tasks {
         const TEN_SECONDS: TimeDelta = TimeDelta::seconds(10);
-        if now - task.value.last_update > TEN_SECONDS {
-            tracing::info!("Re-queueing task {}", task.key.id);
-            requeue_task(client, task).await?;
+        if now - task.value.last_update < TEN_SECONDS {
+            continue;
+        }
+
+        let task_id = task.key.id;
+        tracing::info!("Trying to requeue task {task_id}");
+        match requeue_task(client, task, revision).await {
+            Err(MaybeRevisionError::BadRevision) => {
+                tracing::info!("Could not requeue task {task_id}, it was modified by someone else")
+            }
+            Err(MaybeRevisionError::Other(error)) => {
+                tracing::error!("Failed to requeue task {task_id}: {error:?}")
+            }
+            Ok(_) => tracing::info!("Re-queued task {task_id}"),
         }
     }
 

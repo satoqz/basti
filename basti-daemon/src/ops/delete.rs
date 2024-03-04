@@ -1,11 +1,11 @@
-use super::{find_task, MaybeRevisionError};
+use super::{find_task, MaybeRevisionError, Revision};
 use basti_task::{Task, TaskKey, TaskState};
 use etcd_client::{Compare, CompareOp, KvClient, Txn, TxnOp};
 use strum::IntoEnumIterator;
 use uuid::Uuid;
 
 pub async fn cancel_task(client: &mut KvClient, id: Uuid) -> anyhow::Result<Option<Task>> {
-    let Some(task) = find_task(client, id).await? else {
+    let Some((task, _)) = find_task(client, id).await? else {
         return Ok(None);
     };
 
@@ -22,13 +22,13 @@ pub async fn cancel_task(client: &mut KvClient, id: Uuid) -> anyhow::Result<Opti
 pub async fn finish_task(
     client: &mut KvClient,
     key: &TaskKey,
-    revision: i64,
+    revision: Revision,
 ) -> Result<(), MaybeRevisionError> {
     let txn = Txn::new()
         .when([Compare::mod_revision(
             key.to_string(),
             CompareOp::Equal,
-            revision,
+            revision.0,
         )])
         .and_then([TxnOp::delete(key.to_string(), None)]);
 

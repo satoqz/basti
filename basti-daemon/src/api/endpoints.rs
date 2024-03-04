@@ -25,7 +25,7 @@ pub async fn create_task_endpoint(
 }
 
 #[derive(Debug, Deserialize)]
-struct ListTasksParams {
+pub struct ListTasksParams {
     state: Option<TaskState>,
     limit: Option<i64>,
 }
@@ -39,7 +39,10 @@ pub async fn list_tasks_endpoint(
         .await
         .context("Failed to list tasks")?;
 
-    Ok((StatusCode::OK, Json(tasks)))
+    Ok((
+        StatusCode::OK,
+        Json(tasks.into_iter().map(|(task, _)| task).collect()),
+    ))
 }
 
 #[tracing::instrument(skip(client), err(Debug))]
@@ -51,7 +54,7 @@ pub async fn find_task_endpoint(
         .await
         .context(format!("Failed to find task {id}"))?
     {
-        Some(task) => Ok((StatusCode::OK, Json(task))),
+        Some((task, _)) => Ok((StatusCode::OK, Json(task))),
         None => Err(ApiError {
             kind: ApiErrorKind::NotFound,
             inner: anyhow!("Task {id} does not exist"),

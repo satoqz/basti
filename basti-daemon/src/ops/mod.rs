@@ -5,3 +5,5 @@ mod read;
 mod update;
 
 pub use crate::ops::{create::*, delete::*, errors::*, read::*, update::*};
+
+pub struct Revision(pub i64);

@@ -1,5 +1,5 @@
-use basti_task::{Task, TaskPriority};
-use etcd_client::KvClient;
+use basti_task::{PriorityKey, Task, TaskPriority};
+use etcd_client::{KvClient, Txn, TxnOp};
 use std::time::Duration;
 
 pub async fn create_task(
@@ -9,9 +9,12 @@ pub async fn create_task(
 ) -> anyhow::Result<Task> {
     let task = Task::generate(priority, duration);
 
-    client
-        .put(task.key.to_string(), serde_json::to_vec(&task)?, None)
-        .await?;
+    let txn = Txn::new().and_then([
+        TxnOp::put(task.key.to_string(), serde_json::to_vec(&task)?, None),
+        TxnOp::put(PriorityKey::from(&task).to_string(), "", None),
+    ]);
+
+    client.txn(txn).await?;
 
     Ok(task)
 }

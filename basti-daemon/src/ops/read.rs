@@ -5,6 +5,8 @@ use std::str::FromStr;
 use strum::IntoEnumIterator;
 use uuid::Uuid;
 
+use super::Revision;
+
 pub async fn list_priorities(
     client: &mut KvClient,
     limit: i64,
@@ -32,7 +34,7 @@ pub async fn list_tasks(
     client: &mut KvClient,
     state: Option<TaskState>,
     limit: i64,
-) -> anyhow::Result<Vec<Task>> {
+) -> anyhow::Result<Vec<(Task, Revision)>> {
     let key = match state {
         None => TaskKey::prefix().to_string(),
         Some(state) => format!("{}_{}", TaskKey::prefix(), state),
@@ -44,16 +46,22 @@ pub async fn list_tasks(
 
     let mut tasks = Vec::new();
     for kv in response.kvs() {
-        tasks.push(Task {
-            key: TaskKey::from_str(kv.key_str()?)?,
-            value: serde_json::from_str(kv.value_str()?)?,
-        });
+        tasks.push((
+            Task {
+                key: TaskKey::from_str(kv.key_str()?)?,
+                value: serde_json::from_str(kv.value_str()?)?,
+            },
+            Revision(kv.mod_revision()),
+        ));
     }
 
     Ok(tasks)
 }
 
-pub async fn find_task(client: &mut KvClient, id: Uuid) -> anyhow::Result<Option<Task>> {
+pub async fn find_task(
+    client: &mut KvClient,
+    id: Uuid,
+) -> anyhow::Result<Option<(Task, Revision)>> {
     let txn = Txn::new().and_then(
         TaskState::iter()
             .map(|state| TxnOp::get(TaskKey { id, state }.to_string(), None))
@@ -82,5 +90,5 @@ pub async fn find_task(client: &mut KvClient, id: Uuid) -> anyhow::Result<Option
         value: serde_json::from_str(kv.value_str()?)?,
     };
 
-    Ok(Some(task))
+    Ok(Some((task, Revision(kv.mod_revision()))))
 }
