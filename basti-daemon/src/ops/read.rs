@@ -2,7 +2,6 @@ use anyhow::bail;
 use basti_task::{PriorityKey, Task, TaskKey, TaskState};
 use etcd_client::{GetOptions, KvClient, SortOrder, SortTarget, Txn, TxnOp, TxnOpResponse};
 use std::str::FromStr;
-use strum::VariantArray;
 use uuid::Uuid;
 
 use super::Revision;
