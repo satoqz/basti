@@ -62,7 +62,7 @@ pub async fn requeue_task(
             TxnOp::delete(initial_key.to_string(), None),
             TxnOp::put(
                 task.key.to_string(),
-                serde_json::to_vec(&task).map_err(anyhow::Error::from)?,
+                bson::to_vec(&task).map_err(anyhow::Error::from)?,
                 None,
             ),
             TxnOp::put(PriorityKey::from(&task).to_string(), "", None),
@@ -95,7 +95,7 @@ pub async fn acquire_task(
             TxnOp::delete(PriorityKey::from(&task).to_string(), None),
             TxnOp::put(
                 task.key.to_string(),
-                serde_json::to_vec(&task).map_err(anyhow::Error::from)?,
+                bson::to_vec(&task).map_err(anyhow::Error::from)?,
                 None,
             ),
         ],
@@ -121,7 +121,7 @@ pub async fn progress_task(
         &task.key,
         vec![TxnOp::put(
             task.key.to_string(),
-            serde_json::to_vec(&task).map_err(anyhow::Error::from)?,
+            bson::to_vec(&task).map_err(anyhow::Error::from)?,
             None,
         )],
     )

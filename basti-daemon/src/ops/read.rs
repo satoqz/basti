@@ -52,7 +52,7 @@ pub async fn list_tasks(
         tasks.push((
             Task {
                 key: TaskKey::from_str(kv.key_str()?)?,
-                value: serde_json::from_str(kv.value_str()?)?,
+                value: bson::from_slice(kv.value())?,
             },
             Revision(kv.mod_revision()),
         ));
@@ -95,7 +95,7 @@ where
 
     let task = Task {
         key: TaskKey::from_str(kv.key_str()?)?,
-        value: serde_json::from_str(kv.value_str()?)?,
+        value: bson::from_slice(kv.value())?,
     };
 
     Ok(Some((task, Revision(kv.mod_revision()))))

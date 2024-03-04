@@ -10,7 +10,7 @@ pub async fn create_task(
     let task = Task::generate(priority, duration);
 
     let txn = Txn::new().and_then([
-        TxnOp::put(task.key.to_string(), serde_json::to_vec(&task)?, None),
+        TxnOp::put(task.key.to_string(), bson::to_vec(&task)?, None),
         TxnOp::put(PriorityKey::from(&task).to_string(), "", None),
     ]);
 
