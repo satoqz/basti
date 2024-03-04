@@ -25,6 +25,3 @@ tracing-subscriber.workspace = true
 tracing.workspace = true
 url.workspace = true
 uuid.workspace = true
-
-[profile.release]
-opt-level = 3
