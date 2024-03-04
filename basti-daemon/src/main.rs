@@ -25,7 +25,7 @@ struct Cli {
     )]
     listen: SocketAddr,
 
-    #[clap(long, default_value = "3", help = "Number of workers to run")]
+    #[clap(long, default_value_t = 3, help = "Number of workers to run")]
     workers: usize,
 
     #[clap(long, required = true, help = "Name of the node")]

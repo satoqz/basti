@@ -9,17 +9,17 @@ use uuid::Uuid;
 pub struct SubmitArgs {
     #[clap(
         long,
-        default_value = "TaskPriority::default",
+        default_value_t = TaskPriority::default(),
         help = "Task priority, 0 = highest priority"
     )]
     priority: TaskPriority,
 
-    #[clap(long, default_value = "10", help = "Task duration in seconds")]
+    #[clap(long, default_value_t = 10, help = "Task duration in seconds")]
     seconds: u64,
 
     #[clap(
         long,
-        default_value = "0",
+        default_value_t = 0,
         help = "Additional task duration in milliseconds"
     )]
     millis: u64,
@@ -50,7 +50,7 @@ pub struct ListArgs {
     #[clap(
         long,
         required = false,
-        default_value = "50",
+        default_value_t = 50,
         help = "Maximum number tasks to list"
     )]
     limit: u32,
