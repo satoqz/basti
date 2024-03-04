@@ -4,7 +4,7 @@ pub fn reexec_with_watch(interval: f32) -> anyhow::Result<()> {
     let args = ["--color", "--no-rerun", "--no-title", "--no-wrap"]
         .into_iter()
         .map(String::from)
-        .chain([format!("--interval={interval}"), "--exec".into()].into_iter())
+        .chain([format!("--interval={interval}"), "--exec".into()])
         .chain(env::args().filter(|arg| arg != "--watch"));
 
     Err(Command::new("watch").args(args).exec().into())
