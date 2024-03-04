@@ -8,6 +8,9 @@ use etcd_client::KvClient;
 use std::{num::NonZeroUsize, time::Duration};
 use tokio::{sync::mpsc, task::JoinSet, time::sleep};
 
+const WORK_TIMEOUT_DELTA: TimeDelta = TimeDelta::seconds(10);
+const WORK_FEEDBACK_INTERVAL: Duration = Duration::from_secs(5);
+
 pub async fn run_detached(amount: NonZeroUsize, client: KvClient, node_name: String) {
     let mut join_set = JoinSet::new();
 
@@ -77,10 +80,8 @@ async fn work_on_task(
     let task_id = task.key.id;
 
     while !task.value.remaining.is_zero() {
-        const ONE_SECOND: Duration = Duration::from_secs(1);
-
-        let work_duration = if task.value.remaining >= ONE_SECOND {
-            ONE_SECOND
+        let work_duration = if task.value.remaining >= WORK_FEEDBACK_INTERVAL {
+            WORK_FEEDBACK_INTERVAL
         } else {
             task.value.remaining
         };
@@ -172,8 +173,7 @@ async fn requeue_tasks(client: &mut KvClient) -> anyhow::Result<bool> {
     }
 
     for (task, revision) in tasks {
-        const TEN_SECONDS: TimeDelta = TimeDelta::seconds(10);
-        if now - task.value.last_update < TEN_SECONDS {
+        if now - task.value.last_update < WORK_TIMEOUT_DELTA {
             continue;
         }
 
