@@ -19,13 +19,13 @@ impl TaskKey {
     }
 
     pub fn prefix() -> &'static str {
-        "task"
+        "t"
     }
 }
 
 impl Display for TaskKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}_{}_{}", Self::prefix(), self.state, self.id)
+        write!(f, "{}/{}/{}", Self::prefix(), self.state, self.id)
     }
 }
 

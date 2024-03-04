@@ -11,13 +11,13 @@ pub struct PriorityKey {
 
 impl PriorityKey {
     pub fn prefix() -> &'static str {
-        "priority"
+        "p"
     }
 }
 
 impl Display for PriorityKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}_{:03}_{}", Self::prefix(), self.priority, self.id)
+        write!(f, "{}/{:03}/{}", Self::prefix(), self.priority, self.id)
     }
 }
 

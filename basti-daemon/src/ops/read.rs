@@ -37,7 +37,7 @@ pub async fn list_tasks(
 ) -> anyhow::Result<Vec<(Task, Revision)>> {
     let key = match state {
         None => TaskKey::prefix().to_string(),
-        Some(state) => format!("{}_{}", TaskKey::prefix(), state),
+        Some(state) => format!("{}/{}", TaskKey::prefix(), state),
     };
 
     let response = client

@@ -11,7 +11,7 @@ pub async fn create_task(
 
     let txn = Txn::new().and_then([
         TxnOp::put(task.key.to_string(), bson::to_vec(&task)?, None),
-        TxnOp::put(PriorityKey::from(&task).to_string(), "", None),
+        TxnOp::put(PriorityKey::from(&task).to_string(), [], None),
     ]);
 
     client.txn(txn).await?;
