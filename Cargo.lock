@@ -319,7 +319,6 @@ dependencies = [
  "etcd-client",
  "futures",
  "serde",
- "strum",
  "tokio",
  "tower-http",
  "tracing",

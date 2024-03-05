@@ -12,14 +12,10 @@ async fn update_task_with_revision(
     new_key: &TaskKey,
     mut operations: Vec<TxnOp>,
 ) -> Result<Revision, MaybeRevisionError> {
-    operations.push(TxnOp::get(new_key.to_string(), None));
+    operations.push(TxnOp::get(new_key, None));
 
     let txn = Txn::new()
-        .when([Compare::mod_revision(
-            old_key.to_string(),
-            CompareOp::Equal,
-            revision.0,
-        )])
+        .when([Compare::mod_revision(old_key, CompareOp::Equal, revision.0)])
         .and_then(operations);
 
     let response = client.txn(txn).await.map_err(anyhow::Error::from)?;
@@ -59,13 +55,13 @@ pub async fn requeue_task(
         &initial_key,
         &task.key,
         vec![
-            TxnOp::delete(initial_key.to_string(), None),
+            TxnOp::delete(&initial_key, None),
             TxnOp::put(
-                task.key.to_string(),
+                &task.key,
                 bson::to_vec(&task).map_err(anyhow::Error::from)?,
                 None,
             ),
-            TxnOp::put(PriorityKey::from(&task).to_string(), "", None),
+            TxnOp::put(&PriorityKey::from(&task), "", None),
         ],
     )
     .await?;
@@ -91,10 +87,10 @@ pub async fn acquire_task(
         &initial_key,
         &task.key,
         vec![
-            TxnOp::delete(initial_key.to_string(), None),
-            TxnOp::delete(PriorityKey::from(&task).to_string(), None),
+            TxnOp::delete(&initial_key, None),
+            TxnOp::delete(&PriorityKey::from(&task), None),
             TxnOp::put(
-                task.key.to_string(),
+                &task.key,
                 bson::to_vec(&task).map_err(anyhow::Error::from)?,
                 None,
             ),
@@ -120,7 +116,7 @@ pub async fn progress_task(
         &task.key,
         &task.key,
         vec![TxnOp::put(
-            task.key.to_string(),
+            &task.key,
             bson::to_vec(&task).map_err(anyhow::Error::from)?,
             None,
         )],

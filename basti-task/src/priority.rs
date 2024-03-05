@@ -1,6 +1,5 @@
 use crate::{Task, TaskPriority};
 use anyhow::bail;
-use std::{fmt::Display, str::FromStr};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy)]
@@ -10,38 +9,35 @@ pub struct PriorityKey {
 }
 
 impl PriorityKey {
-    pub fn prefix() -> &'static str {
-        "p"
-    }
-}
+    pub const PREFIX: u8 = b'p';
 
-impl Display for PriorityKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}/{:03}/{}", Self::prefix(), self.priority, self.id)
+    pub fn new(priority: TaskPriority, id: Uuid) -> Self {
+        Self { priority, id }
     }
 }
 
 impl From<&Task> for PriorityKey {
     fn from(task: &Task) -> Self {
-        Self {
-            priority: task.value.priority,
-            id: task.key.id,
-        }
+        Self::new(task.value.priority, task.key.id)
     }
 }
 
-impl FromStr for PriorityKey {
-    type Err = anyhow::Error;
-    fn from_str(s: &str) -> anyhow::Result<Self> {
-        let parts: Vec<&str> = s.split('_').collect();
+impl From<&PriorityKey> for Vec<u8> {
+    fn from(value: &PriorityKey) -> Self {
+        let mut result = vec![PriorityKey::PREFIX, value.priority.0];
+        result.extend_from_slice(value.id.as_bytes());
+        result
+    }
+}
 
-        if parts.len() != 3 || parts[0] != Self::prefix() {
-            bail!("Malformed key")
-        }
+impl TryFrom<&[u8]> for PriorityKey {
+    type Error = anyhow::Error;
+    fn try_from(value: &[u8]) -> anyhow::Result<Self> {
+        let (priority, uuid) = match value {
+            [Self::PREFIX, priority, uuid @ ..] => (priority, uuid),
+            _ => bail!("Wrong prefix byte"),
+        };
 
-        Ok(Self {
-            priority: TaskPriority::from_str(parts[1])?,
-            id: Uuid::from_str(parts[2])?,
-        })
+        Ok(Self::new(TaskPriority(*priority), Uuid::from_slice(uuid)?))
     }
 }

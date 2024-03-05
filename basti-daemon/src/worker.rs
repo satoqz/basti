@@ -134,7 +134,7 @@ async fn find_work(
 
     for priority in priorities.into_iter() {
         tracing::info!("Trying to find matching task for priority {}", priority.id);
-        let Some((task, revision)) = find_task(client, priority.id, [&TaskState::Queued]).await?
+        let Some((task, revision)) = find_task(client, priority.id, [TaskState::Queued]).await?
         else {
             tracing::warn!("Could not find task matching priority {}", priority.id);
             continue;

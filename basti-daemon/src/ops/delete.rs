@@ -1,7 +1,6 @@
 use super::{find_task, MaybeRevisionError, Revision};
 use basti_task::{Task, TaskKey, TaskState};
 use etcd_client::{Compare, CompareOp, KvClient, Txn, TxnOp};
-use strum::VariantArray;
 use uuid::Uuid;
 
 pub async fn cancel_task(client: &mut KvClient, id: Uuid) -> anyhow::Result<Option<Task>> {
@@ -11,7 +10,7 @@ pub async fn cancel_task(client: &mut KvClient, id: Uuid) -> anyhow::Result<Opti
 
     let operations = TaskState::VARIANTS
         .iter()
-        .map(|state| TxnOp::delete(TaskKey { state: *state, id }.to_string(), None))
+        .map(|state| TxnOp::delete(&TaskKey::new(*state, id), None))
         .collect::<Vec<_>>();
 
     let txn = Txn::new().and_then(operations);
@@ -27,11 +26,11 @@ pub async fn finish_task(
 ) -> Result<(), MaybeRevisionError> {
     let txn = Txn::new()
         .when([Compare::mod_revision(
-            key.to_string(),
+            &key.clone(),
             CompareOp::Equal,
             revision.0,
         )])
-        .and_then([TxnOp::delete(key.to_string(), None)]);
+        .and_then([TxnOp::delete(key, None)]);
 
     if !client
         .txn(txn)

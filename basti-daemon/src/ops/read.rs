@@ -1,7 +1,6 @@
 use anyhow::bail;
 use basti_task::{PriorityKey, Task, TaskKey, TaskState};
 use etcd_client::{GetOptions, KvClient, SortOrder, SortTarget, Txn, TxnOp, TxnOpResponse};
-use std::str::FromStr;
 use uuid::Uuid;
 
 use super::Revision;
@@ -12,7 +11,7 @@ pub async fn list_priorities(
 ) -> anyhow::Result<Vec<PriorityKey>> {
     let response = client
         .get(
-            PriorityKey::prefix(),
+            [PriorityKey::PREFIX],
             Some(
                 GetOptions::default()
                     .with_limit(limit)
@@ -24,7 +23,7 @@ pub async fn list_priorities(
 
     let mut priorities = Vec::new();
     for kv in response.kvs() {
-        priorities.push(PriorityKey::from_str(kv.key_str()?)?)
+        priorities.push(PriorityKey::try_from(kv.key())?)
     }
 
     Ok(priorities)
@@ -36,8 +35,8 @@ pub async fn list_tasks(
     limit: i64,
 ) -> anyhow::Result<Vec<(Task, Revision)>> {
     let key = match state {
-        None => TaskKey::prefix().to_string(),
-        Some(state) => format!("{}/{}", TaskKey::prefix(), state),
+        None => vec![TaskKey::PREFIX],
+        Some(state) => vec![TaskKey::PREFIX, state.into()],
     };
 
     let response = client
@@ -51,7 +50,7 @@ pub async fn list_tasks(
     for kv in response.kvs() {
         tasks.push((
             Task {
-                key: TaskKey::from_str(kv.key_str()?)?,
+                key: TaskKey::try_from(kv.key())?,
                 value: bson::from_slice(kv.value())?,
             },
             Revision(kv.mod_revision()),
@@ -61,18 +60,18 @@ pub async fn list_tasks(
     Ok(tasks)
 }
 
-pub async fn find_task<'a, S>(
+pub async fn find_task<S>(
     client: &mut KvClient,
     id: Uuid,
     try_states: S,
 ) -> anyhow::Result<Option<(Task, Revision)>>
 where
-    S: IntoIterator<Item = &'a TaskState>,
+    S: IntoIterator<Item = TaskState>,
 {
     let txn = Txn::new().and_then(
         try_states
             .into_iter()
-            .map(|state| TxnOp::get(TaskKey { state: *state, id }.to_string(), None))
+            .map(|state| TxnOp::get(&TaskKey::new(state, id), None))
             .collect::<Vec<_>>(),
     );
 
@@ -94,7 +93,7 @@ where
     };
 
     let task = Task {
-        key: TaskKey::from_str(kv.key_str()?)?,
+        key: TaskKey::try_from(kv.key())?,
         value: bson::from_slice(kv.value())?,
     };
 
