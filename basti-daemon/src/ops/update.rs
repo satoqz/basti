@@ -43,7 +43,7 @@ pub async fn requeue_task(
     mut task: Task,
     revision: Revision,
 ) -> Result<(Task, Revision), MaybeRevisionError> {
-    let initial_key = task.key.clone();
+    let initial_key = task.key;
 
     task.key.state = TaskState::Queued;
     task.value.last_update = Utc::now();
@@ -75,7 +75,7 @@ pub async fn acquire_task(
     revision: Revision,
     node_name: String,
 ) -> Result<(Task, Revision), MaybeRevisionError> {
-    let initial_key = task.key.clone();
+    let initial_key = task.key;
 
     task.key.state = TaskState::Running;
     task.value.assignee = Some(node_name);
