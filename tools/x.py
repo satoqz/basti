@@ -55,16 +55,19 @@ def build_cmd(service: str) -> None:
 
 @cli.command(name="deploy")
 @click.argument("service", type=click.Choice(SERVICES), required=True)
+@click.argument("nodes", type=str, nargs=-1)
 @click.option("--group", "-g", type=str, default=INVENTORY["default_group"])
 @click.option("--no-build", is_flag=True, type=bool, default=False)
 @click.pass_context
-def deploy_cmd(ctx: click.Context, service: str, group: str, no_build: bool) -> None:
+def deploy_cmd(
+    ctx: click.Context, service: str, nodes: list[str], group: str, no_build: bool
+) -> None:
     if not no_build:
         ctx.invoke(build_cmd, service=service)
 
     image_tag = {"bastid": BASTID_IMAGE_TAG, "etcd": ETCD_IMAGE_TAG}[service]
 
-    for node in INVENTORY[group]:
+    for node in nodes or INVENTORY[group]:
         ssh = INVENTORY[group][node]["ssh"]
 
         result = subprocess.run(
@@ -84,9 +87,10 @@ def deploy_cmd(ctx: click.Context, service: str, group: str, no_build: bool) -> 
 
 @cli.command(name="stop")
 @click.argument("service", type=click.Choice(SERVICES), required=True)
+@click.argument("nodes", type=str, nargs=-1)
 @click.option("--group", "-g", type=str, default=INVENTORY["default_group"])
-def stop_cmd(service: str, group: str) -> None:
-    for node in INVENTORY[group]:
+def stop_cmd(service: str, nodes: list[str], group: str) -> None:
+    for node in nodes or INVENTORY[group]:
         node_details = INVENTORY[group][node]
         result = subprocess.run(
             [
@@ -103,6 +107,7 @@ def stop_cmd(service: str, group: str) -> None:
 
 @cli.command(name="start")
 @click.argument("service", type=click.Choice(SERVICES), required=True)
+@click.argument("nodes", type=str, nargs=-1)
 @click.option("--group", "-g", type=str, default=INVENTORY["default_group"])
 @click.option("--deploy", is_flag=True, type=bool, default=False)
 @click.option("--no-build", is_flag=True, type=bool, default=False)
@@ -111,15 +116,18 @@ def stop_cmd(service: str, group: str) -> None:
 def start_cmd(
     ctx: click.Context,
     service: str,
+    nodes: list[str],
     group: str,
     deploy: bool,
     no_build: bool,
     no_stop: bool,
 ) -> None:
     if deploy:
-        ctx.invoke(deploy_cmd, service=service, group=group, no_build=no_build)
+        ctx.invoke(
+            deploy_cmd, service=service, nodes=nodes, group=group, no_build=no_build
+        )
     if not no_stop:
-        ctx.invoke(stop_cmd, service=service, group=group)
+        ctx.invoke(stop_cmd, service=service, nodes=nodes, group=group)
 
     container_image, container_ports, container_volumes = {
         "bastid": (BASTID_IMAGE_TAG, [BASTID_PORT], []),
@@ -135,7 +143,7 @@ def start_cmd(
         for node in INVENTORY[group]
     )
 
-    for node in INVENTORY[group]:
+    for node in nodes or INVENTORY[group]:
         node_details = INVENTORY[group][node]
 
         docker_command = (
