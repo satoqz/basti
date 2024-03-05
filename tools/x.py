@@ -89,7 +89,11 @@ def stop_cmd(service: str, group: str) -> None:
     for node in INVENTORY[group]:
         node_details = INVENTORY[group][node]
         result = subprocess.run(
-            ["ssh", node_details["ssh"], f"sudo docker kill basti-{service}"],
+            [
+                "ssh",
+                node_details["ssh"],
+                f"sudo docker kill basti-{service} && sudo docker rm basti-{service}",
+            ],
             stdin=False,
             capture_output=True,
         )
@@ -141,7 +145,7 @@ def start_cmd(
                 "run",
                 "-d",
                 "--init",
-                "--rm",
+                "--restart=unless-stopped",
                 f"--name=basti-{service}",
             ]
             + [f"-p={port}:{port}" for port in container_ports]
