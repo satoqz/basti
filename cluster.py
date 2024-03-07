@@ -32,14 +32,14 @@ class Etcd(masoud.Service):
             (peer_port, self.DEFAULT_PEER_PORT),
         ]
 
-    DEFAULT_VOLUME_NAME = "example-etcd-data"
+    DEFAULT_VOLUME_NAME = "basti-etcd-data"
     VOLUME_MOUNT = "/data"
 
     def volumes(self) -> list[tuple[str, str]]:
         volume_name = self.host.get_var("etcd_volume", str) or self.DEFAULT_VOLUME_NAME
         return [(volume_name, self.VOLUME_MOUNT)]
 
-    DEFAULT_INITIAL_CLUSTER_TOKEN = "example-etcd-cluster"
+    DEFAULT_INITIAL_CLUSTER_TOKEN = "basti-etcd-cluster"
 
     def command(self) -> list[str]:
         ip = self.host.must_get_var("ip", str)
