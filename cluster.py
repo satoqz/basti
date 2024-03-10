@@ -28,7 +28,7 @@ class Bastid(masoud.Service):
             f"--name={self.host.name}",
             f"--workers={self.host.get_var("bastid_workers", int) or 1}",
             f"--etcd=http://{self.host.must_get_var("ip", str)}:{self.host.get_var("etcd_client_port", int) or Etcd.DEFAULT_CLIENT_PORT}",
-            f"--listen=0.0.0.0:{self.host.get_var("bastid_port", int) or self.DEFAULT_PORT}",
+            f"--listen=0.0.0.0:{self.DEFAULT_PORT}",
         ]
 
 
@@ -68,8 +68,9 @@ class Etcd(masoud.Service):
     @property
     def command(self) -> list[str]:
         ip = self.host.must_get_var("ip", str)
-        client_port = (
-            self.host.get_var("etcd_client_port", int) or self.DEFAULT_CLIENT_PORT
+        client_port, peer_port = (
+            self.host.get_var("etcd_client_port", int) or self.DEFAULT_CLIENT_PORT,
+            self.host.get_var("etcd_peer_port", int) or self.DEFAULT_PEER_PORT,
         )
         initial_cluster = ",".join(
             f"{host.name}=http://{host.must_get_var("ip", str)}:{host.get_var("etcd_peer_port") or self.DEFAULT_PEER_PORT}"
@@ -80,7 +81,7 @@ class Etcd(masoud.Service):
             f"--name={self.host.name}",
             f"--data-dir={self.VOLUME_MOUNT}/data",
             f"--wal-dir={self.VOLUME_MOUNT}/wal",
-            f"--initial-advertise-peer-urls=http://{ip}:{self.DEFAULT_PEER_PORT}",
+            f"--initial-advertise-peer-urls=http://{ip}:{peer_port}",
             f"--listen-peer-urls=http://0.0.0.0:{self.DEFAULT_PEER_PORT}",
             f"--listen-client-urls=http://0.0.0.0:{self.DEFAULT_CLIENT_PORT}",
             f"--advertise-client-urls=http://{ip}:{client_port}",
