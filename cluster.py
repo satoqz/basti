@@ -22,15 +22,11 @@ class Bastid(masoud.Service):
 
     @property
     def command(self) -> list[str]:
-        etcd = [
-            f"http://{host.must_get_var("ip", str)}:{host.get_var("etcd_client_port", int) or Etcd.DEFAULT_CLIENT_PORT}"
-            for host in self.group.get_hosts()
-        ]
         return [
             "bastid",
             f"--name={self.host.name}",
             f"--workers={self.host.get_var("bastid_workers", int) or 1}",
-            f"--etcd={",".join(etcd)}",
+            f"--etcd=http://{self.host.must_get_var("ip", str)}:{self.host.get_var("etcd_client_port", int) or Etcd.DEFAULT_CLIENT_PORT}",
             f"--listen=0.0.0.0:{self.host.get_var("bastid_port", int) or self.DEFAULT_PORT}",
         ]
 
