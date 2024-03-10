@@ -19,7 +19,7 @@ class Bastid(masoud.Service):
     @property
     def ports(self) -> list[tuple[int, int]]:
         port = self.host.get_var("bastid_port", int) or self.DEFAULT_PORT
-        return [(port, self.DEFAULT_PORT)]
+        return [(port, port)]
 
     @property
     def command(self) -> list[str]:
@@ -43,15 +43,13 @@ class Etcd(masoud.Service):
 
     @property
     def ports(self) -> list[tuple[int, int]]:
+        client_port, peer_port = (
+            self.host.get_var("etcd_client_port", int) or self.DEFAULT_CLIENT_PORT,
+            self.host.get_var("etcd_peer_port", int) or self.DEFAULT_PEER_PORT,
+        )
         return [
-            (
-                self.host.get_var("etcd_client_port", int) or self.DEFAULT_CLIENT_PORT,
-                self.DEFAULT_CLIENT_PORT,
-            ),
-            (
-                self.host.get_var("etcd_peer_port", int) or self.DEFAULT_PEER_PORT,
-                self.DEFAULT_PEER_PORT,
-            ),
+            (client_port, client_port),
+            (peer_port, peer_port),
         ]
 
     VOLUME_MOUNT = "/data"
@@ -68,22 +66,26 @@ class Etcd(masoud.Service):
     @property
     def command(self) -> list[str]:
         ip = self.host.must_get_var("ip", str)
-        client_port = (
-            self.host.get_var("etcd_client_port", int) or self.DEFAULT_CLIENT_PORT
+
+        client_port, peer_port = (
+            self.host.get_var("etcd_client_port", int) or self.DEFAULT_CLIENT_PORT,
+            self.host.get_var("etcd_peer_port", int) or self.DEFAULT_PEER_PORT,
         )
+
         initial_cluster = ",".join(
             f"{host.name}=http://{host.must_get_var("ip", str)}:{host.get_var("etcd_peer_port") or self.DEFAULT_PEER_PORT}"
             for host in self.group.get_hosts()
         )
+
         return [
             "etcd",
             f"--name={self.host.name}",
             f"--data-dir={self.VOLUME_MOUNT}/data",
             f"--wal-dir={self.VOLUME_MOUNT}/wal",
-            f"--initial-advertise-peer-urls=http://{ip}:{self.DEFAULT_PEER_PORT}",
-            f"--listen-peer-urls=http://0.0.0.0:{self.DEFAULT_PEER_PORT}",
-            f"--listen-client-urls=http://0.0.0.0:{self.DEFAULT_CLIENT_PORT}",
+            f"--listen-client-urls=http://0.0.0.0:{client_port}",
             f"--advertise-client-urls=http://{ip}:{client_port}",
+            f"--listen-peer-urls=http://0.0.0.0:{peer_port}",
+            f"--initial-advertise-peer-urls=http://{ip}:{peer_port}",
             f"--initial-cluster={initial_cluster}",
             "--initial-cluster-token=bastid-etcd-cluster",
             "--initial-cluster-state=new",
