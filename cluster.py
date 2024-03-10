@@ -94,7 +94,7 @@ class Etcd(masoud.Service):
 @click.pass_context
 def print_cluster(ctx: click.Context):
     group: masoud.Group = ctx.obj["group"]
-    click.echo(f"export BASTID_CLUSTER='{",".join([
+    click.echo(f"export BASTI_CLUSTER='{",".join([
         f"http://{host.must_get_var("ip", str)}:{host.get_var("bastid_port", int) or Bastid.DEFAULT_PORT}"
         for host in group.get_hosts()
     ])}'")
