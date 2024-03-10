@@ -2,6 +2,7 @@
 
 from os import path
 
+import click
 import masoud
 
 PROJECT_ROOT = path.dirname(__file__)
@@ -87,6 +88,16 @@ class Etcd(masoud.Service):
             "--initial-cluster-token=bastid-etcd-cluster",
             "--initial-cluster-state=new",
         ]
+
+
+@masoud.cli.command
+@click.pass_context
+def print_cluster(ctx: click.Context):
+    group: masoud.Group = ctx.obj["group"]
+    click.echo(f"export BASTID_CLUSTER='{",".join([
+        f"http://{host.must_get_var("ip", str)}:{host.get_var("bastid_port", int) or Bastid.DEFAULT_PORT}"
+        for host in group.get_hosts()
+    ])}'")
 
 
 if __name__ == "__main__":
