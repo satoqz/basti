@@ -28,7 +28,7 @@ pub fn print_task_table(tasks: Vec<Task>) {
         let optimistic_remaining = if task.key.state == TaskState::Running {
             task.value
                 .remaining
-                .saturating_sub((now - task.value.last_update).to_std().unwrap_or_default())
+                .saturating_sub((now - task.value.updated_at).to_std().unwrap_or_default())
         } else {
             task.value.remaining
         };

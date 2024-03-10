@@ -168,7 +168,7 @@ async fn requeue_tasks(client: &mut KvClient) -> anyhow::Result<bool> {
     }
 
     for (task, revision) in tasks {
-        if now - task.value.last_update < WORK_TIMEOUT_DELTA {
+        if now - task.value.updated_at < WORK_TIMEOUT_DELTA {
             continue;
         }
 

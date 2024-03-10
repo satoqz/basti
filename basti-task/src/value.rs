@@ -7,7 +7,7 @@ pub struct TaskValue {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub assignee: Option<String>,
     pub remaining: Duration,
-    pub last_update: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
     pub priority: TaskPriority,
     pub created_at: DateTime<Utc>,
     pub duration: Duration,
@@ -20,7 +20,7 @@ impl TaskValue {
             duration,
             remaining: duration,
             created_at: now,
-            last_update: now,
+            updated_at: now,
             priority,
             assignee: None,
         }

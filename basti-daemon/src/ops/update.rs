@@ -46,7 +46,7 @@ pub async fn requeue_task(
     let initial_key = task.key;
 
     task.key.state = TaskState::Queued;
-    task.value.last_update = Utc::now();
+    task.value.updated_at = Utc::now();
     task.value.assignee = None;
 
     let revision = update_task_with_revision(
@@ -79,7 +79,7 @@ pub async fn acquire_task(
 
     task.key.state = TaskState::Running;
     task.value.assignee = Some(node_name);
-    task.value.last_update = Utc::now();
+    task.value.updated_at = Utc::now();
 
     let revision = update_task_with_revision(
         client,
@@ -108,7 +108,7 @@ pub async fn progress_task(
     progress: Duration,
 ) -> Result<(Task, Revision), MaybeRevisionError> {
     task.value.remaining -= progress;
-    task.value.last_update = Utc::now();
+    task.value.updated_at = Utc::now();
 
     let revision = update_task_with_revision(
         client,
