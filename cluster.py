@@ -9,6 +9,7 @@ PROJECT_ROOT = path.dirname(__file__)
 
 class Bastid(masoud.Service):
     name = "bastid"
+    container_name = "basti-bastid"
     image = "satoqz.net/bastid:latest"
     dockerfile = (path.join(PROJECT_ROOT, "docker/bastid.Dockerfile"), PROJECT_ROOT)
 
