@@ -9,7 +9,4 @@ target/
 docker/
 .dockerignore
 
-cluster.py
-inventory.toml
-
 *.md
