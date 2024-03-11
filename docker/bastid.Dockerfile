@@ -1,3 +1,4 @@
+#!/usr/bin/env -S docker build ../ -t satoqz.net/bastid:latest -f 
 FROM rust:alpine AS builder
 
 RUN apk add --no-cache musl-dev protoc
