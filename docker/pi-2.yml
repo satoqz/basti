@@ -1,0 +1,41 @@
+#!/usr/bin/env -S docker -H ssh://pi@192.168.0.21 compose -p basti -f
+
+volumes:
+  etcd:
+
+services:
+  etcd:
+    image: ghcr.io/satoqz/etcd:latest
+    restart: unless-stopped
+    ports:
+      - 2379:2379
+      - 2380:2380
+    volumes:
+      - etcd:/volume
+    command:
+      - etcd
+      - --name=pi-2
+      - --data-dir=/volume/data
+      - --wal-dir=/volume/wal
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --advertise-client-urls=http://192.168.0.21:2379
+      - --initial-advertise-peer-urls=http://192.168.0.21:2380
+      - --initial-cluster=pi-1=http://192.168.0.20:2380,pi-2=http://198.168.0.21:2380,pi-3=http://192.168.0.22:2380
+      - --initial-cluster-token=basti-etcd-cluster
+      - --initial-cluster-state=new
+
+  bastid:
+    image: ghcr.io/satoqz/bastid:latest
+    init: true
+    restart: unless-stopped
+    ports:
+      - 1337:1337
+    depends_on:
+      - etcd
+    command:
+      - bastid
+      - --name=pi-2
+      - --workers=1
+      - --listen=0.0.0.0:1337
+      - --etcd=http://192.168.0.21:2379
