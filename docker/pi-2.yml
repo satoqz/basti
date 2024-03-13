@@ -27,7 +27,6 @@ services:
 
   bastid:
     image: ghcr.io/satoqz/bastid:latest
-    init: true
     restart: unless-stopped
     ports:
       - 1337:1337
