@@ -1,4 +1,4 @@
-#!/usr/bin/env -S docker build . -t ghcr.io/satoqz/bastid:latest -f 
+#!/usr/bin/env -S docker build ../ -t ghcr.io/satoqz/bastid:latest -f 
 
 FROM rust:alpine AS builder
 
