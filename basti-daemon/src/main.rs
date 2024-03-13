@@ -11,17 +11,28 @@ use url::Url;
 
 #[derive(Debug, Parser)]
 struct Cli {
-    #[clap(long, required = true, help = "Name of the node")]
+    #[clap(long, env = "BASTID_NAME", required = true, help = "Name of the node")]
     name: String,
 
-    #[clap(long, default_value_t = 3, help = "Number of workers to run")]
+    #[clap(
+        long,
+        env = "BASTID_WORKERS",
+        default_value_t = 3,
+        help = "Number of workers to run"
+    )]
     workers: usize,
 
-    #[clap(long, default_value_t = false, help = "Don't expose an API service")]
+    #[clap(
+        long,
+        env = "BASTID_NO_API",
+        default_value_t = false,
+        help = "Don't expose an API service"
+    )]
     no_api: bool,
 
     #[clap(
         long,
+        env = "BASTID_LISTEN",
         default_value = "127.0.0.1:1337",
         help = "API endpoint to listen on"
     )]
@@ -29,6 +40,7 @@ struct Cli {
 
     #[clap(
         long,
+        env = "BASTID_ETCD",
         default_value = "http://127.0.0.1:2379",
         use_value_delimiter = true,
         help = "Comma-separated list of etcd endpoints"

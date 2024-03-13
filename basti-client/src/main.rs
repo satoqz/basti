@@ -16,9 +16,9 @@ struct Cli {
 
     #[clap(
         long,
+        env = "BASTICTL_CLUSTER",
         default_value = "http://127.0.0.1:1337",
         use_value_delimiter = true,
-        env = "BASTI_CLUSTER",
         help = "Comma-separeted list of cluster endpoints"
     )]
     cluster: Vec<Url>,
