@@ -1,12 +1,4 @@
-.git/
-.gitignore
-
-.cargo/
-target/
-
-.vscode/
-
-docker/
-.dockerignore
-
-*.md
+/**
+!/basti-*
+!/Cargo.toml
+!/Cargo.lock
