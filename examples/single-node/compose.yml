@@ -1,0 +1,30 @@
+#!/usr/bin/env -S docker compose -p basti -f
+
+volumes:
+  etcd:
+    name: basti-single-node-etcd
+
+networks:
+  default:
+    name: basti-single-node
+
+services:
+  etcd:
+    image: ghcr.io/satoqz/etcd:latest
+    container_name: basti-single-node-etcd
+    volumes:
+      - etcd:/data
+    command:
+      - --data-dir=/data
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd:2379
+
+  bastid:
+    image: ghcr.io/satoqz/bastid:latest
+    container_name: basti-single-node-bastid
+    ports:
+      - 1337:1337
+    command:
+      - --etcd=http://etcd:2379
+    depends_on:
+      - etcd
