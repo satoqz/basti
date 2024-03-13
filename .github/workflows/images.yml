@@ -28,12 +28,12 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         push: true
-        dockerfile: docker/etcd.Dockerfile
+        file: docker/etcd.Dockerfile
         tags: ghcr.io/satoqz/etcd:latest
 
     - name: Build and push bastid image
       uses: docker/build-push-action@v5
       with:
         push: true
-        dockerfile: docker/bastid.Dockerfile
+        file: docker/bastid.Dockerfile
         tags: ghcr.io/satoqz/bastid:latest
