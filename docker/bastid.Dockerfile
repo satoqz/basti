@@ -13,4 +13,6 @@ RUN cargo install --locked --path basti-daemon
 FROM scratch 
 
 COPY --from=builder /usr/local/cargo/bin/bastid /
-CMD ["/bastid"]
+ENV PATH /
+
+ENTRYPOINT [ "bastid" ]

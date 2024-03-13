@@ -6,4 +6,4 @@ RUN apk add etcd \
     --no-cache \
     --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing
 
-CMD ["etcd"]
+ENTRYPOINT [ "etcd" ]

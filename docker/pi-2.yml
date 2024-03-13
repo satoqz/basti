@@ -13,7 +13,6 @@ services:
     volumes:
       - etcd:/volume
     command:
-      - etcd
       - --name=pi-2
       - --data-dir=/volume/data
       - --wal-dir=/volume/wal
@@ -33,7 +32,6 @@ services:
     depends_on:
       - etcd
     command:
-      - bastid
       - --name=pi-2
       - --workers=1
       - --listen=0.0.0.0:1337
