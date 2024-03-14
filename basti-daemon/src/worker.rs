@@ -2,7 +2,7 @@ use crate::ops::{
     acquire_task, find_task, finish_task, list_priorities, list_tasks, progress_task, requeue_task,
     MaybeRevisionError, Revision,
 };
-use basti_types::{Task, TaskState};
+use basti_types::{Name, Task, TaskState};
 use chrono::{TimeDelta, Utc};
 use etcd_client::KvClient;
 use std::{num::NonZeroUsize, time::Duration};
@@ -11,7 +11,7 @@ use tokio::{sync::mpsc, time::sleep};
 const WORK_TIMEOUT_DELTA: TimeDelta = TimeDelta::seconds(10);
 const WORK_FEEDBACK_INTERVAL: Duration = Duration::from_secs(5);
 
-pub async fn run(amount: NonZeroUsize, client: KvClient, node_name: String) {
+pub async fn run(amount: NonZeroUsize, client: KvClient, name: Name) {
     let (work_sender, work_receiver) = async_channel::bounded(1);
     let (work_request_sender, mut work_request_receiver) = mpsc::channel(amount.get());
 
@@ -37,7 +37,7 @@ pub async fn run(amount: NonZeroUsize, client: KvClient, node_name: String) {
     let find_work_handle = async move {
         work_request_receiver.recv().await.unwrap();
         loop {
-            match find_work(&mut find_work_client, node_name.clone()).await {
+            match find_work(&mut find_work_client, name.clone()).await {
                 Err(err) => {
                     tracing::error!("failed to find work: {err}");
                     sleep(Duration::from_secs(5)).await;
@@ -126,10 +126,7 @@ async fn work_on_task(
     Ok(())
 }
 
-async fn find_work(
-    client: &mut KvClient,
-    node_name: String,
-) -> anyhow::Result<Option<(Task, Revision)>> {
+async fn find_work(client: &mut KvClient, name: Name) -> anyhow::Result<Option<(Task, Revision)>> {
     let priorities = list_priorities(client, 10).await?;
 
     for priority in priorities.into_iter() {
@@ -141,7 +138,7 @@ async fn find_work(
         };
 
         tracing::info!("trying to acquire task {}", priority.id);
-        match acquire_task(client, task, revision, node_name.clone()).await {
+        match acquire_task(client, task, revision, name.clone()).await {
             Err(MaybeRevisionError::BadRevision) => tracing::info!(
                 "could not acquire task {}, it was modified by someone else",
                 priority.id

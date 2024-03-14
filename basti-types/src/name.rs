@@ -3,7 +3,7 @@ use std::{fmt::Display, str::FromStr};
 use anyhow::bail;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Name(String);
 
 impl Name {

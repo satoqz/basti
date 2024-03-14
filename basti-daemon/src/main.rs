@@ -3,6 +3,7 @@ mod ops;
 mod worker;
 
 use anyhow::bail;
+use basti_types::Name;
 use clap::Parser;
 use etcd_client::{Client, ConnectOptions};
 use std::{net::SocketAddr, num::NonZeroUsize, time::Duration};
@@ -12,7 +13,7 @@ use url::Url;
 #[derive(Debug, Parser)]
 struct Cli {
     #[clap(long, env = "BASTID_NAME", required = true, help = "Name of the node")]
-    name: String,
+    name: Name,
 
     #[clap(
         long,

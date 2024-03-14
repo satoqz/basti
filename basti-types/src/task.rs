@@ -5,6 +5,8 @@ use std::{fmt::Display, str::FromStr, time::Duration};
 use strum_macros::{Display, EnumString};
 use uuid::Uuid;
 
+use crate::Name;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateTask {
     pub duration: Duration,
@@ -75,7 +77,7 @@ impl TryFrom<&[u8]> for TaskKey {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct TaskValue {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub assignee: Option<String>,
+    pub assignee: Option<Name>,
     pub remaining: Duration,
     pub updated_at: DateTime<Utc>,
     pub priority: TaskPriority,

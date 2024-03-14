@@ -1,6 +1,6 @@
 use super::{errors::MaybeRevisionError, Revision};
 use anyhow::anyhow;
-use basti_types::{PriorityKey, Task, TaskKey, TaskState};
+use basti_types::{Name, PriorityKey, Task, TaskKey, TaskState};
 use chrono::Utc;
 use etcd_client::{Compare, CompareOp, KvClient, Txn, TxnOp, TxnOpResponse};
 use std::time::Duration;
@@ -73,12 +73,12 @@ pub async fn acquire_task(
     client: &mut KvClient,
     mut task: Task,
     revision: Revision,
-    node_name: String,
+    name: Name,
 ) -> Result<(Task, Revision), MaybeRevisionError> {
     let initial_key = task.key;
 
     task.key.state = TaskState::Running;
-    task.value.assignee = Some(node_name);
+    task.value.assignee = Some(name);
     task.value.updated_at = Utc::now();
 
     let revision = update_task_with_revision(
