@@ -17,6 +17,7 @@ impl BastiClient {
         Ok(Self {
             endpoints,
             http_client: reqwest::Client::builder()
+                .http2_prior_knowledge()
                 .connect_timeout(Duration::from_secs(3))
                 .timeout(Duration::from_secs(3))
                 .build()?,

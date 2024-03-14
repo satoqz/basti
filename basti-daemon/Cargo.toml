@@ -10,7 +10,7 @@ path = "src/main.rs"
 [dependencies]
 anyhow.workspace = true
 async-channel = "2.2.0"
-axum = "0.7.4"
+axum = { version = "0.7.4", features = ["http2"] }
 basti-task = { path = "../basti-task" }
 bson = "2.9.0"
 chrono.workspace = true
