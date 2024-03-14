@@ -292,7 +292,7 @@ name = "basti-client"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "basti-task",
+ "basti-types",
  "chrono",
  "clap",
  "colored",
@@ -312,7 +312,7 @@ dependencies = [
  "anyhow",
  "async-channel",
  "axum 0.7.4",
- "basti-task",
+ "basti-types",
  "bson",
  "chrono",
  "clap",
@@ -328,7 +328,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "basti-task"
+name = "basti-types"
 version = "0.1.0"
 dependencies = [
  "anyhow",

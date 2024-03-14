@@ -1,6 +1,6 @@
 use super::{errors::MaybeRevisionError, Revision};
 use anyhow::anyhow;
-use basti_task::{PriorityKey, Task, TaskKey, TaskState};
+use basti_types::{PriorityKey, Task, TaskKey, TaskState};
 use chrono::Utc;
 use etcd_client::{Compare, CompareOp, KvClient, Txn, TxnOp, TxnOpResponse};
 use std::time::Duration;

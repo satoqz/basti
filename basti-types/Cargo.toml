@@ -1,5 +1,5 @@
 [package]
-name = "basti-task"
+name = "basti-types"
 version.workspace = true
 edition.workspace = true
 

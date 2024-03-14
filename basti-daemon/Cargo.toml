@@ -11,7 +11,7 @@ path = "src/main.rs"
 anyhow.workspace = true
 async-channel = "2.2.0"
 axum = { version = "0.7.4", features = ["http2"] }
-basti-task = { path = "../basti-task" }
+basti-types = { path = "../basti-types" }
 bson = "2.9.0"
 chrono.workspace = true
 clap.workspace = true

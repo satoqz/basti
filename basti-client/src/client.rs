@@ -1,5 +1,5 @@
 use anyhow::bail;
-use basti_task::{CreateTask, Task, TaskPriority, TaskState};
+use basti_types::{CreateTask, Task, TaskPriority, TaskState};
 use reqwest::{Method, RequestBuilder};
 use serde::de::DeserializeOwned;
 use std::time::Duration;

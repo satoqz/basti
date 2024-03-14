@@ -2,7 +2,7 @@ use crate::ops::{
     acquire_task, find_task, finish_task, list_priorities, list_tasks, progress_task, requeue_task,
     MaybeRevisionError, Revision,
 };
-use basti_task::{Task, TaskState};
+use basti_types::{Task, TaskState};
 use chrono::{TimeDelta, Utc};
 use etcd_client::KvClient;
 use std::{num::NonZeroUsize, time::Duration};

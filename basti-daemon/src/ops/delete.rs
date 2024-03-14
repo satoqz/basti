@@ -1,5 +1,5 @@
 use super::{find_task, MaybeRevisionError, Revision};
-use basti_task::{Task, TaskKey, TaskState};
+use basti_types::{Task, TaskKey, TaskState};
 use etcd_client::{Compare, CompareOp, KvClient, Txn, TxnOp};
 use uuid::Uuid;
 

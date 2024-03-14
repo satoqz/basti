@@ -1,4 +1,4 @@
-use basti_task::{PriorityKey, Task, TaskPriority};
+use basti_types::{PriorityKey, Task, TaskPriority};
 use etcd_client::{KvClient, Txn, TxnOp};
 use std::time::Duration;
 

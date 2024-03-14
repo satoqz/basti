@@ -1,4 +1,4 @@
-use basti_task::{Task, TaskState};
+use basti_types::{Task, TaskState};
 use chrono::Utc;
 use tabled::{
     builder::Builder,

@@ -3,7 +3,7 @@ use crate::{
     table::print_task_table,
     util::{reexec_with_watch, Compact},
 };
-use basti_task::{TaskPriority, TaskState};
+use basti_types::{TaskPriority, TaskState};
 use clap::Args;
 use colored::Colorize;
 use std::{cmp::Ordering, time::Duration};

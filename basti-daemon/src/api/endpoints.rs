@@ -6,7 +6,7 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
-use basti_task::{CreateTask, Task, TaskState};
+use basti_types::{CreateTask, Task, TaskState};
 use etcd_client::KvClient;
 use serde::Deserialize;
 use std::fmt::Debug;
