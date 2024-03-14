@@ -1,4 +1,4 @@
-use basti_types::{Task, TaskState};
+use basti_types::{Name, Task, TaskState};
 use chrono::Utc;
 use tabled::{
     builder::Builder,
@@ -45,7 +45,10 @@ pub fn print_task_table(tasks: Vec<Task>) {
             task.key.id.to_string(),
             task.key.state.to_string(),
             task.value.priority.to_string(),
-            task.value.assignee.unwrap_or("none".into()),
+            task.value
+                .assignee
+                .map(Name::into_inner)
+                .unwrap_or("none".into()),
             format!(
                 "{}.{:03}s",
                 task.value.duration.as_secs(),

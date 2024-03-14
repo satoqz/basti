@@ -24,6 +24,14 @@ impl Name {
 
         Ok(())
     }
+
+    pub fn inner(&self) -> &String {
+        &self.0
+    }
+
+    pub fn into_inner(self) -> String {
+        self.0
+    }
 }
 
 impl FromStr for Name {
