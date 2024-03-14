@@ -62,7 +62,7 @@ impl TryFrom<&[u8]> for TaskKey {
     fn try_from(value: &[u8]) -> anyhow::Result<Self> {
         let (state, rest) = match value {
             [Self::PREFIX, state, rest @ ..] => (state, rest),
-            _ => bail!("Wrong prefix byte"),
+            _ => bail!("unexpected prefix byte"),
         };
 
         Ok(Self::new(
@@ -130,7 +130,7 @@ impl TryFrom<u8> for TaskState {
         Ok(match value {
             b'q' => Self::Queued,
             b'r' => Self::Running,
-            _ => bail!("Invalid TaskState byte"),
+            _ => bail!("unexpected state byte"),
         })
     }
 }
@@ -191,7 +191,7 @@ impl TryFrom<&[u8]> for PriorityKey {
     fn try_from(value: &[u8]) -> anyhow::Result<Self> {
         let (priority, uuid) = match value {
             [Self::PREFIX, priority, uuid @ ..] => (priority, uuid),
-            _ => bail!("Wrong prefix byte"),
+            _ => bail!("unexpected prefix byte"),
         };
 
         Ok(Self::new(TaskPriority(*priority), Uuid::from_slice(uuid)?))

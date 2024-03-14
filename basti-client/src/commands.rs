@@ -141,7 +141,7 @@ pub async fn cancel_command(args: CancelArgs, client: BastiClient) -> anyhow::Re
                 "✓".green().bold(),
                 task.key.id.to_string().bright_black().italic()
             ),
-            Err(error) => println!("{} {}", "✖".red().bold(), error),
+            Err(err) => println!("{} {}", "✖".red().bold(), err),
         }
     }
 

@@ -2,7 +2,6 @@ mod endpoints;
 mod errors;
 
 use crate::api::endpoints::*;
-use anyhow::Context;
 use axum::{
     routing::{delete, get, post},
     Router,
@@ -28,15 +27,13 @@ pub async fn run(addr: SocketAddr, client: KvClient) -> anyhow::Result<()> {
         .layer(trace_layer)
         .with_state(client);
 
-    let listener = tokio::net::TcpListener::bind(addr)
-        .await
-        .context("Failed to bind address")?;
-    tracing::info!("Listening at http://{addr}");
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    tracing::info!("listening at http://{addr}");
 
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await
-        .context("Failed to serve HTTP")
+        .map_err(anyhow::Error::from)
 }
 
 async fn shutdown_signal() {
@@ -49,7 +46,7 @@ async fn shutdown_signal() {
     #[cfg(unix)]
     let terminate = async {
         signal::unix::signal(signal::unix::SignalKind::terminate())
-            .expect("failed to install SIGTERM handler")
+            .expect("failed to install sigterm handler")
             .recv()
             .await;
     };

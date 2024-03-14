@@ -89,7 +89,7 @@ where
     let kv = match kvs.as_slice() {
         [] => return Ok(None),
         [kv] => kv,
-        _ => bail!("Inconsistent database, task exists with several states"),
+        _ => bail!("inconsistent database, task exists with several states"),
     };
 
     let task = Task {

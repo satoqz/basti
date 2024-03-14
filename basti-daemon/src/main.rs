@@ -71,13 +71,13 @@ async fn main() -> anyhow::Result<()> {
     match (NonZeroUsize::new(args.workers), args.no_api) {
         (Some(amount), false) => {
             tokio::select! {
-                _ = worker::run(amount, client.clone(), args.name) => bail!("Worker exited unexpectedly"),
-                result = api::run(args.listen, client) => bail!("API exited unexpectedly, result: {result:?}"),
+                _ = worker::run(amount, client.clone(), args.name) => bail!("worker exited unexpectedly"),
+                result = api::run(args.listen, client) => result?,
             }
         }
         (Some(amount), true) => worker::run(amount, client, args.name).await,
         (None, false) => api::run(args.listen, client.clone()).await?,
-        (None, true) => bail!("Nothing to do: Running 0 workers and no API service"),
+        (None, true) => bail!("nothing to do: running 0 workers and no api service"),
     };
 
     Ok(())

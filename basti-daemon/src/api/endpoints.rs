@@ -19,7 +19,7 @@ pub async fn create_task_endpoint(
 ) -> ApiResult<Task> {
     let task = create_task(&mut client, payload.duration, payload.priority)
         .await
-        .context("Failed to create task")?;
+        .context("failed to create task")?;
 
     Ok((StatusCode::CREATED, Json(task)))
 }
@@ -37,7 +37,7 @@ pub async fn list_tasks_endpoint(
 ) -> ApiResult<Vec<Task>> {
     let tasks = list_tasks(&mut client, params.state, params.limit.unwrap_or(50))
         .await
-        .context("Failed to list tasks")?;
+        .context("failed to list tasks")?;
 
     Ok((
         StatusCode::OK,
@@ -52,12 +52,12 @@ pub async fn find_task_endpoint(
 ) -> ApiResult<Task> {
     match find_task(&mut client, id, TaskState::VARIANTS)
         .await
-        .context(format!("Failed to find task {id}"))?
+        .context(format!("failed to find task {id}"))?
     {
         Some((task, _)) => Ok((StatusCode::OK, Json(task))),
         None => Err(ApiError {
             kind: ApiErrorKind::NotFound,
-            inner: anyhow!("Task {id} does not exist"),
+            inner: anyhow!("task {id} does not exist"),
         }),
     }
 }
@@ -69,12 +69,12 @@ pub async fn cancel_task_endpoint(
 ) -> ApiResult<Task> {
     match cancel_task(&mut client, id)
         .await
-        .context(format!("Failed to cancel task {id}"))?
+        .context(format!("failed to cancel task {id}"))?
     {
         Some(task) => Ok((StatusCode::OK, Json(task))),
         None => Err(ApiError {
             kind: ApiErrorKind::NotFound,
-            inner: anyhow!("Task {id} does not exist"),
+            inner: anyhow!("task {id} does not exist"),
         }),
     }
 }

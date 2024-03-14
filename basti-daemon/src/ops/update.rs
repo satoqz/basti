@@ -27,12 +27,12 @@ async fn update_task_with_revision(
     let op_responses = response.op_responses();
     let Some(TxnOpResponse::Get(get_response)) = op_responses.last() else {
         return Err(
-            anyhow!("Last op-response in transaction was not the expected get response").into(),
+            anyhow!("last op-response in transaction was not the expected get response").into(),
         );
     };
 
     let Some(kv) = get_response.kvs().first() else {
-        return Err(anyhow!("Get response has no kv pair").into());
+        return Err(anyhow!("get response has no kv pair").into());
     };
 
     Ok(Revision(kv.mod_revision()))

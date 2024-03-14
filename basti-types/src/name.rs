@@ -1,24 +1,25 @@
 use std::{fmt::Display, str::FromStr};
 
+use anyhow::bail;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
 pub struct Name(String);
 
 impl Name {
-    pub fn validate(s: &str) -> Result<(), &'static str> {
+    pub fn validate(s: &str) -> anyhow::Result<()> {
         if s.len() < 1 {
-            return Err("name is empty");
+            bail!("name is empty")
         }
 
         if s.len() > 32 {
-            return Err("name is longer than 32 characters");
+            bail!("name is longer than 32 characters")
         }
 
         if !s.chars().all(|c| {
             c == '-' || c.is_ascii_digit() || (c.is_ascii_alphabetic() && c.is_ascii_lowercase())
         }) {
-            return Err("name may only contain characters -, 0-9, a-z");
+            bail!("name may only contain characters -, 0-9, a-z")
         }
 
         Ok(())
@@ -26,7 +27,7 @@ impl Name {
 }
 
 impl FromStr for Name {
-    type Err = &'static str;
+    type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::validate(s).map(|_| Self(s.to_string()))
     }

@@ -48,8 +48,8 @@ async fn main() -> anyhow::Result<()> {
         Command::Cancel(args) => cancel_command(args, basti).await,
     };
 
-    if let Err(error) = result {
-        println!("{} {}", "✖".red().bold(), error);
+    if let Err(err) = result {
+        println!("{} {}", "✖".red().bold(), err);
         process::exit(1);
     }
 
