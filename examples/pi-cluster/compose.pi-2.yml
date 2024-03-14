@@ -1,4 +1,4 @@
-#!/usr/bin/env -S docker -H ssh://pi@192.168.0.21 compose -p basti -f
+#!/usr/bin/env -S docker -H ssh://pi@192.168.0.22 compose -p basti -f
 
 volumes:
   etcd:
@@ -23,9 +23,9 @@ services:
       - --data-dir=/data
       - --listen-client-urls=http://0.0.0.0:2379
       - --listen-peer-urls=http://0.0.0.0:2380
-      - --advertise-client-urls=http://192.168.0.21:2379
-      - --initial-advertise-peer-urls=http://192.168.0.21:2380
-      - --initial-cluster=pi-1=http://192.168.0.20:2380,pi-2=http://198.168.0.21:2380,pi-3=http://192.168.0.22:2380
+      - --advertise-client-urls=http://192.168.0.22:2379
+      - --initial-advertise-peer-urls=http://192.168.0.22:2380
+      - --initial-cluster=pi-1=http://192.168.0.21:2380,pi-2=http://192.168.0.22:2380,pi-3=http://192.168.0.23:2380
       - --initial-cluster-token=basti-etcd-cluster
       - --initial-cluster-state=new
 
@@ -40,4 +40,4 @@ services:
     command:
       - --name=pi-2
       - --workers=1
-      - --etcd=http://192.168.0.21:2379
+      - --etcd=http://192.168.0.22:2379
