@@ -1,5 +1,6 @@
-use axum::{http::StatusCode, response::IntoResponse, response::Response, Json};
 use std::fmt::{Debug, Display};
+
+use axum::{http::StatusCode, response::IntoResponse, response::Response, Json};
 
 pub enum ApiErrorKind {
     Internal,

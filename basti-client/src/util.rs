@@ -1,8 +1,9 @@
-use anyhow::anyhow;
 use std::{
     collections::HashSet, env, hash::Hash, io::ErrorKind, os::unix::process::CommandExt,
     process::Command,
 };
+
+use anyhow::anyhow;
 
 pub fn reexec_with_watch(interval: f32) -> anyhow::Result<()> {
     let args = ["--color", "--no-rerun", "--no-title", "--no-wrap"]

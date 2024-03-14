@@ -1,6 +1,8 @@
-use basti_types::{PriorityKey, Task, TaskPriority};
-use etcd_client::{KvClient, Txn, TxnOp};
 use std::time::Duration;
+
+use etcd_client::{KvClient, Txn, TxnOp};
+
+use basti_types::{PriorityKey, Task, TaskPriority};
 
 pub async fn create_task(
     client: &mut KvClient,

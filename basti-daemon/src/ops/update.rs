@@ -1,9 +1,12 @@
-use super::{errors::MaybeRevisionError, Revision};
+use std::time::Duration;
+
 use anyhow::anyhow;
-use basti_types::{Name, PriorityKey, Task, TaskKey, TaskState};
 use chrono::Utc;
 use etcd_client::{Compare, CompareOp, KvClient, Txn, TxnOp, TxnOpResponse};
-use std::time::Duration;
+
+use basti_types::{Name, PriorityKey, Task, TaskKey, TaskState};
+
+use super::{errors::MaybeRevisionError, Revision};
 
 async fn update_task_with_revision(
     client: &mut KvClient,

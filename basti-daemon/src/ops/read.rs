@@ -1,7 +1,8 @@
 use anyhow::bail;
-use basti_types::{PriorityKey, Task, TaskKey, TaskState};
 use etcd_client::{GetOptions, KvClient, SortOrder, SortTarget, Txn, TxnOp, TxnOpResponse};
 use uuid::Uuid;
+
+use basti_types::{PriorityKey, Task, TaskKey, TaskState};
 
 use super::Revision;
 

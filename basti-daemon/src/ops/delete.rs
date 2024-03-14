@@ -1,7 +1,9 @@
-use super::{find_task, MaybeRevisionError, Revision};
-use basti_types::{Task, TaskKey, TaskState};
 use etcd_client::{Compare, CompareOp, KvClient, Txn, TxnOp};
 use uuid::Uuid;
+
+use basti_types::{Task, TaskKey, TaskState};
+
+use super::{find_task, MaybeRevisionError, Revision};
 
 pub async fn cancel_task(client: &mut KvClient, id: Uuid) -> anyhow::Result<Option<Task>> {
     let Some((task, _)) = find_task(client, id, TaskState::VARIANTS).await? else {

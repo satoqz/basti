@@ -1,16 +1,18 @@
 mod endpoints;
 mod errors;
 
-use crate::api::endpoints::*;
+use std::net::SocketAddr;
+
 use axum::{
     routing::{delete, get, post},
     Router,
 };
 use etcd_client::KvClient;
-use std::net::SocketAddr;
 use tokio::signal;
 use tower_http::trace::{DefaultOnFailure, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::Level;
+
+use crate::api::endpoints::*;
 
 #[tracing::instrument(skip_all)]
 pub async fn run(addr: SocketAddr, client: KvClient) -> anyhow::Result<()> {

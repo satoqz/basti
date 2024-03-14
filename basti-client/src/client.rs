@@ -1,10 +1,12 @@
+use std::time::Duration;
+
 use anyhow::bail;
-use basti_types::{CreateTask, Task, TaskPriority, TaskState};
 use reqwest::{Method, RequestBuilder};
 use serde::de::DeserializeOwned;
-use std::time::Duration;
 use url::Url;
 use uuid::Uuid;
+
+use basti_types::{CreateTask, Task, TaskPriority, TaskState};
 
 #[derive(Debug)]
 pub struct BastiClient {

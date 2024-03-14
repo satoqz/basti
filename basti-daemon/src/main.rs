@@ -2,13 +2,15 @@ mod api;
 mod ops;
 mod worker;
 
+use std::{net::SocketAddr, num::NonZeroUsize, time::Duration};
+
 use anyhow::bail;
-use basti_types::Name;
 use clap::Parser;
 use etcd_client::{Client, ConnectOptions};
-use std::{net::SocketAddr, num::NonZeroUsize, time::Duration};
 use tracing::Level;
 use url::Url;
+
+use basti_types::Name;
 
 #[derive(Debug, Parser)]
 struct Cli {

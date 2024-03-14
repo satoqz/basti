@@ -3,11 +3,13 @@ mod commands;
 mod table;
 mod util;
 
-use crate::{client::BastiClient, commands::*};
+use std::process;
+
 use clap::{Parser, Subcommand};
 use colored::Colorize;
-use std::process;
 use url::Url;
+
+use crate::{client::BastiClient, commands::*};
 
 #[derive(Debug, Parser)]
 struct Cli {

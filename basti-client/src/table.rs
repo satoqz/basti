@@ -1,4 +1,3 @@
-use basti_types::{Name, Task, TaskState};
 use chrono::Utc;
 use tabled::{
     builder::Builder,
@@ -7,6 +6,8 @@ use tabled::{
         Color, Style,
     },
 };
+
+use basti_types::{Name, Task, TaskState};
 
 const PROGRESS_BAR_LENGTH: usize = 16;
 

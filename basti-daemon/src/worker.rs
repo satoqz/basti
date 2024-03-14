@@ -1,12 +1,18 @@
+use std::num::NonZeroUsize;
+
+use chrono::{TimeDelta, Utc};
+use etcd_client::KvClient;
+use tokio::{
+    sync::mpsc,
+    time::{sleep, Duration},
+};
+
+use basti_types::{Name, Task, TaskState};
+
 use crate::ops::{
     acquire_task, find_task, finish_task, list_priorities, list_tasks, progress_task, requeue_task,
     MaybeRevisionError, Revision,
 };
-use basti_types::{Name, Task, TaskState};
-use chrono::{TimeDelta, Utc};
-use etcd_client::KvClient;
-use std::{num::NonZeroUsize, time::Duration};
-use tokio::{sync::mpsc, time::sleep};
 
 const WORK_TIMEOUT_DELTA: TimeDelta = TimeDelta::seconds(10);
 const WORK_FEEDBACK_INTERVAL: Duration = Duration::from_secs(5);

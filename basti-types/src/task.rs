@@ -1,7 +1,8 @@
+use std::{fmt::Display, str::FromStr, time::Duration};
+
 use anyhow::bail;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::{fmt::Display, str::FromStr, time::Duration};
 use strum_macros::{Display, EnumString};
 use uuid::Uuid;
 
