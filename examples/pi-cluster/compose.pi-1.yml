@@ -14,18 +14,18 @@ services:
     container_name: basti-etcd
     restart: unless-stopped
     ports:
-      - 2379:2379
-      - 2380:2380
+      - 43278:43278
+      - 54389:54389
     volumes:
       - etcd:/data
     command:
       - --name=pi-1
       - --data-dir=/data
-      - --listen-client-urls=http://0.0.0.0:2379
-      - --listen-peer-urls=http://0.0.0.0:2380
-      - --advertise-client-urls=http://192.168.0.21:2379
-      - --initial-advertise-peer-urls=http://192.168.0.21:2380
-      - --initial-cluster=pi-1=http://192.168.0.21:2380,pi-2=http://192.168.0.22:2380,pi-3=http://192.168.0.23:2380
+      - --listen-client-urls=http://0.0.0.0:43278
+      - --listen-peer-urls=http://0.0.0.0:54389
+      - --advertise-client-urls=http://192.168.0.21:43278
+      - --initial-advertise-peer-urls=http://192.168.0.21:54389
+      - --initial-cluster=pi-1=http://192.168.0.21:54389,pi-2=http://192.168.0.22:54389,pi-3=http://192.168.0.23:54389
       - --initial-cluster-token=basti-etcd-cluster
       - --initial-cluster-state=new
 
@@ -40,4 +40,4 @@ services:
     command:
       - --name=pi-1
       - --workers=1
-      - --etcd=http://192.168.0.21:2379
+      - --etcd=http://192.168.0.21:43278
