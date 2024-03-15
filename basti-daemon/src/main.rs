@@ -2,10 +2,11 @@ mod api;
 mod ops;
 mod worker;
 
-use std::{net::SocketAddr, num::NonZeroUsize, time::Duration};
+use std::{net::SocketAddr, num::NonZeroUsize, process::exit, time::Duration};
 
 use clap::Parser;
 use etcd_client::{Client, ConnectOptions};
+use tokio::signal;
 use url::Url;
 
 use basti_types::WorkerName;
@@ -66,17 +67,50 @@ async fn main() -> anyhow::Result<()> {
     .await?
     .kv_client();
 
+    let run_worker = {
+        let client = client.clone();
+        |amount| async move {
+            worker::run(amount, client, args.name).await;
+        }
+    };
+
+    let run_api = || async move {
+        if let Err(err) = api::run(args.listen, client).await {
+            tracing::error!("api exited with error: {err}");
+            exit(1);
+        }
+    };
+
     match (NonZeroUsize::new(args.workers), args.no_api) {
         (Some(amount), false) => {
-            tokio::select! {
-                _ = worker::run(amount, client.clone(), args.name) => {},
-                result = api::run(args.listen, client) => result?,
-            }
+            tokio::join!(run_api(), run_worker(amount));
         }
-        (Some(amount), true) => worker::run(amount, client, args.name).await,
-        (None, false) => api::run(args.listen, client.clone()).await?,
-        (None, true) => {}
+        (Some(amount), true) => run_worker(amount).await,
+        (None, false) => run_api().await,
+        (None, true) => tracing::warn!("nothing to do"),
     };
 
     Ok(())
+}
+
+pub async fn shutdown_signal() {
+    let ctrl_c = async {
+        signal::ctrl_c().await.expect("failed to listen for event");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
 }

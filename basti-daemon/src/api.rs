@@ -9,12 +9,14 @@ use axum::{
 };
 use etcd_client::KvClient;
 use serde::Deserialize;
-use tokio::signal;
 use uuid::Uuid;
 
 use basti_types::{CreateTask, Task, TaskState};
 
-use crate::ops::{cancel_task, create_task, find_task, list_tasks};
+use crate::{
+    ops::{cancel_task, create_task, find_task, list_tasks},
+    shutdown_signal,
+};
 
 pub async fn run(addr: SocketAddr, client: KvClient) -> anyhow::Result<()> {
     let app = Router::new()
@@ -31,28 +33,6 @@ pub async fn run(addr: SocketAddr, client: KvClient) -> anyhow::Result<()> {
         .with_graceful_shutdown(shutdown_signal())
         .await
         .map_err(anyhow::Error::from)
-}
-
-async fn shutdown_signal() {
-    let ctrl_c = async {
-        signal::ctrl_c().await.expect("failed to listen for event");
-    };
-
-    #[cfg(unix)]
-    let terminate = async {
-        signal::unix::signal(signal::unix::SignalKind::terminate())
-            .expect("failed to install signal handler")
-            .recv()
-            .await;
-    };
-
-    #[cfg(not(unix))]
-    let terminate = std::future::pending::<()>();
-
-    tokio::select! {
-        _ = ctrl_c => {},
-        _ = terminate => {},
-    }
 }
 
 #[derive(Debug)]

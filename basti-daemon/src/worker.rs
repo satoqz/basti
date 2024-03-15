@@ -2,6 +2,7 @@ use std::num::NonZeroUsize;
 
 use chrono::{TimeDelta, Utc};
 use etcd_client::KvClient;
+use futures::future;
 use tokio::{
     sync::mpsc,
     time::{sleep, Duration},
@@ -9,9 +10,12 @@ use tokio::{
 
 use basti_types::{Task, TaskState, WorkerName};
 
-use crate::ops::{
-    acquire_task, find_task, finish_task, list_priorities, list_tasks, progress_task, requeue_task,
-    Revision,
+use crate::{
+    ops::{
+        acquire_task, find_task, finish_task, list_priorities, list_tasks, progress_task,
+        requeue_task, Revision,
+    },
+    shutdown_signal,
 };
 
 const WORK_TIMEOUT_DELTA: TimeDelta = TimeDelta::seconds(10);
@@ -36,37 +40,47 @@ pub async fn run(amount: NonZeroUsize, client: KvClient, name: WorkerName) {
         }
     });
 
-    let mut find_work_client = client.clone();
-    let mut requeue_tasks_client = client.clone();
-
-    let find_work_handle = async move {
-        work_request_receiver.recv().await.unwrap();
-        loop {
-            match find_work(&mut find_work_client, name.clone()).await {
-                Err(_) => sleep(Duration::from_secs(5)).await,
-                Ok(None) => sleep(Duration::from_millis(500)).await,
-                Ok(Some(work)) => {
-                    work_sender.send(work).await.unwrap();
-                    work_request_receiver.recv().await.unwrap();
-                }
-            };
+    let find_work_handle = {
+        let mut client = client.clone();
+        async move {
+            work_request_receiver.recv().await.unwrap();
+            loop {
+                match find_work(&mut client, name.clone()).await {
+                    Err(_) => sleep(Duration::from_secs(5)).await,
+                    Ok(None) => sleep(Duration::from_millis(500)).await,
+                    Ok(Some(work)) => {
+                        work_sender.send(work).await.unwrap();
+                        work_request_receiver.recv().await.unwrap();
+                    }
+                };
+            }
         }
     };
 
-    let requeue_tasks_handle = async move {
-        loop {
-            match requeue_tasks(&mut requeue_tasks_client).await {
-                Err(_) => sleep(Duration::from_secs(5)).await,
-                Ok(()) => sleep(Duration::from_millis(500)).await,
-            };
+    let requeue_tasks_handle = {
+        let mut client = client.clone();
+        async move {
+            loop {
+                match requeue_tasks(&mut client).await {
+                    Err(_) => sleep(Duration::from_secs(5)).await,
+                    Ok(()) => sleep(Duration::from_millis(500)).await,
+                };
+            }
         }
     };
 
-    tokio::join!(
-        futures::future::join_all(worker_handles),
-        find_work_handle,
-        requeue_tasks_handle
-    );
+    let joined_handles = async {
+        tokio::join!(
+            future::join_all(worker_handles),
+            find_work_handle,
+            requeue_tasks_handle
+        )
+    };
+
+    tokio::select! {
+        _ = shutdown_signal() => {}
+        _ = joined_handles => unreachable!()
+    }
 }
 
 #[tracing::instrument(skip_all, err(Display))]
