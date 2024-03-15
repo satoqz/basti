@@ -9,7 +9,7 @@ use clap::{Parser, Subcommand};
 use colored::Colorize;
 use url::Url;
 
-use crate::{client::BastiClient, commands::*};
+use crate::{client::Client, commands::*};
 
 #[derive(Debug, Parser)]
 struct Cli {
@@ -41,7 +41,7 @@ enum Command {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
-    let basti = BastiClient::new(cli.cluster)?;
+    let basti = Client::new(cli.cluster)?;
 
     let result = match cli.command {
         Command::Submit(args) => submit_command(args, basti).await,

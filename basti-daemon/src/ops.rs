@@ -47,7 +47,7 @@ pub async fn list_priorities(
 
     let mut priorities = Vec::new();
     for kv in response.kvs() {
-        priorities.push(PriorityKey::try_from(kv.key())?)
+        priorities.push(PriorityKey::try_from(kv.key())?);
     }
 
     Ok(priorities)
@@ -91,7 +91,7 @@ pub async fn find_task(
 ) -> anyhow::Result<Option<(Task, Revision)>> {
     let txn = Txn::new().and_then(
         try_states
-            .into_iter()
+            .iter()
             .map(|state| TxnOp::get(&TaskKey::new(*state, id), None))
             .collect::<Vec<_>>(),
     );
@@ -142,13 +142,13 @@ async fn update_task_with_revision(
 
     let op_responses = response.op_responses();
     let Some(TxnOpResponse::Get(get_response)) = op_responses.last() else {
-        return Err(
-            anyhow!("last op-response in transaction was not the expected get response").into(),
-        );
+        return Err(anyhow!(
+            "last op-response in transaction was not the expected get response"
+        ));
     };
 
     let Some(kv) = get_response.kvs().first() else {
-        return Err(anyhow!("get response has no kv pair").into());
+        return Err(anyhow!("get response has no kv pair"));
     };
 
     Ok(Some(Revision(kv.mod_revision())))

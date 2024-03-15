@@ -11,7 +11,7 @@ use basti_types::{Task, TaskState, WorkerName};
 
 const PROGRESS_BAR_LENGTH: usize = 16;
 
-pub fn print_task_table(tasks: Vec<Task>) {
+pub fn print_tasks(tasks: Vec<Task>) {
     let mut builder = Builder::new();
     builder.push_record([
         "ID",
@@ -48,8 +48,7 @@ pub fn print_task_table(tasks: Vec<Task>) {
             task.value.priority.to_string(),
             task.value
                 .assignee
-                .map(WorkerName::into_inner)
-                .unwrap_or("none".into()),
+                .map_or_else(|| "none".into(), WorkerName::into_inner),
             format!(
                 "{}.{:03}s",
                 task.value.duration.as_secs(),
@@ -65,7 +64,7 @@ pub fn print_task_table(tasks: Vec<Task>) {
                 "█".repeat(progress),
                 " ".repeat(PROGRESS_BAR_LENGTH - progress)
             ),
-        ])
+        ]);
     }
 
     let mut table = builder.build();
@@ -73,5 +72,5 @@ pub fn print_task_table(tasks: Vec<Task>) {
         .with(Style::modern_rounded())
         .modify(Columns::last(), Color::FG_GREEN)
         .modify(Rows::first(), Color::FG_WHITE | Color::BOLD);
-    println!("{}", table);
+    println!("{table}");
 }

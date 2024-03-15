@@ -7,9 +7,9 @@ use uuid::Uuid;
 use basti_types::{TaskPriority, TaskState};
 
 use crate::{
-    client::BastiClient,
-    table::print_task_table,
-    util::{reexec_with_watch, Compact},
+    client::Client,
+    table,
+    util::{self, Compact},
 };
 
 #[derive(Debug, Args)]
@@ -30,7 +30,7 @@ pub struct SubmitArgs {
     priority: TaskPriority,
 }
 
-pub async fn submit_command(args: SubmitArgs, client: BastiClient) -> anyhow::Result<()> {
+pub async fn submit_command(args: SubmitArgs, client: Client) -> anyhow::Result<()> {
     let task = client
         .submit(
             Duration::from_secs(args.seconds) + Duration::from_millis(args.millis),
@@ -80,9 +80,9 @@ pub struct ListArgs {
     limit: u32,
 }
 
-pub async fn list_command(args: ListArgs, client: BastiClient) -> anyhow::Result<()> {
+pub async fn list_command(args: ListArgs, client: Client) -> anyhow::Result<()> {
     if args.watch_args.watch {
-        reexec_with_watch(args.watch_args.watch_interval)?
+        util::reexec_with_watch(args.watch_args.watch_interval)?;
     }
 
     let mut tasks = client.list(args.state, Some(args.limit)).await?;
@@ -92,7 +92,7 @@ pub async fn list_command(args: ListArgs, client: BastiClient) -> anyhow::Result
             " {} Number of tasks is truncated to limit of {}",
             "⚠".yellow().bold(),
             args.limit
-        )
+        );
     }
 
     tasks.sort_by(|a, b| match (a.key.state, b.key.state) {
@@ -101,7 +101,7 @@ pub async fn list_command(args: ListArgs, client: BastiClient) -> anyhow::Result
         _ => a.value.cmp(&b.value),
     });
 
-    print_task_table(tasks);
+    table::print_tasks(tasks);
     Ok(())
 }
 
@@ -113,9 +113,9 @@ pub struct ShowArgs {
     ids: Vec<Uuid>,
 }
 
-pub async fn show_command(args: ShowArgs, client: BastiClient) -> anyhow::Result<()> {
+pub async fn show_command(args: ShowArgs, client: Client) -> anyhow::Result<()> {
     if args.watch_args.watch {
-        reexec_with_watch(args.watch_args.watch_interval)?
+        util::reexec_with_watch(args.watch_args.watch_interval)?;
     }
 
     let tasks = futures::future::join_all(args.ids.compact().into_iter().map(|id| client.find(id)))
@@ -123,7 +123,7 @@ pub async fn show_command(args: ShowArgs, client: BastiClient) -> anyhow::Result
         .into_iter()
         .collect::<Result<Vec<_>, _>>()?;
 
-    print_task_table(tasks);
+    table::print_tasks(tasks);
     Ok(())
 }
 
@@ -133,7 +133,7 @@ pub struct CancelArgs {
     ids: Vec<Uuid>,
 }
 
-pub async fn cancel_command(args: CancelArgs, client: BastiClient) -> anyhow::Result<()> {
+pub async fn cancel_command(args: CancelArgs, client: Client) -> anyhow::Result<()> {
     let task_results =
         futures::future::join_all(args.ids.compact().into_iter().map(|id| client.cancel(id))).await;
 

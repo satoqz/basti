@@ -33,7 +33,7 @@ pub async fn run(amount: NonZeroUsize, client: KvClient, name: WorkerName) {
             loop {
                 work_request_sender.send(()).await.unwrap();
                 let (task, revision) = task_receiver.recv().await.unwrap();
-                if let Err(_) = work_on_task(&mut client, task, revision).await {
+                if work_on_task(&mut client, task, revision).await.is_err() {
                     sleep(Duration::from_secs(5)).await;
                 }
             }
@@ -78,7 +78,7 @@ pub async fn run(amount: NonZeroUsize, client: KvClient, name: WorkerName) {
     };
 
     tokio::select! {
-        _ = shutdown_signal() => {}
+        () = shutdown_signal() => {}
         _ = joined_handles => unreachable!()
     }
 }
@@ -110,30 +110,29 @@ async fn work_on_task(
 
         sleep(work_duration).await;
 
-        (task, revision) = match progress_task(client, task, revision, work_duration).await? {
-            Some(update) => update,
-            None => {
+        (task, revision) =
+            if let Some(update) = progress_task(client, task, revision, work_duration).await? {
+                update
+            } else {
                 tracing::warn!(id = %task_id, event = "stolen");
                 return Ok(());
-            }
-        };
+            };
     }
 
-    match finish_task(client, &task.key, revision).await? {
-        Some(_) => {
-            let time_taken = (Utc::now() - task.value.created_at).to_std()?;
-            tracing::info!(
-                id = %task_id,
-                event = "finished",
-                total = format!(
-                    "{}.{:03}s",
-                    time_taken.as_secs(),
-                    time_taken.subsec_millis()
-                ),
-            );
-        }
-        None => tracing::warn!(id = %task_id, event = "stolen"),
-    };
+    if let Some(()) = finish_task(client, &task.key, revision).await? {
+        let time_taken = (Utc::now() - task.value.created_at).to_std()?;
+        tracing::info!(
+            id = %task_id,
+            event = "finished",
+            total = format!(
+                "{}.{:03}s",
+                time_taken.as_secs(),
+                time_taken.subsec_millis()
+            ),
+        );
+    } else {
+        tracing::warn!(id = %task_id, event = "stolen");
+    }
 
     Ok(())
 }
@@ -145,22 +144,21 @@ async fn find_work(
 ) -> anyhow::Result<Option<(Task, Revision)>> {
     let priorities = list_priorities(client, 10).await?;
 
-    for priority in priorities.into_iter() {
+    for priority in priorities {
         let Some((task, revision)) = find_task(client, priority.id, &[TaskState::Queued]).await?
         else {
             continue;
         };
 
-        match acquire_task(client, task, revision, name.clone()).await? {
-            Some((task, revision)) => {
-                tracing::info!(id = %task.key.id, event = "acquired");
-                return Ok(Some((task, revision)));
-            }
-            None => tracing::info!(
-                id = %priority.id,
-                event = "stolen"
-            ),
+        if let Some((task, revision)) = acquire_task(client, task, revision, name.clone()).await? {
+            tracing::info!(id = %task.key.id, event = "acquired");
+            return Ok(Some((task, revision)));
         }
+
+        tracing::info!(
+            id = %priority.id,
+            event = "stolen"
+        );
     }
 
     Ok(None)
@@ -180,7 +178,7 @@ async fn requeue_tasks(client: &mut KvClient) -> anyhow::Result<()> {
         match requeue_task(client, task, revision).await? {
             Some(_) => tracing::info!(id = %task_id, event = "requeued"),
             None => {
-                tracing::info!(id = %task_id, event = "stolen")
+                tracing::info!(id = %task_id, event = "stolen");
             }
         }
     }

@@ -23,6 +23,7 @@ pub struct Task {
 }
 
 impl Task {
+    #[must_use]
     pub fn generate(priority: TaskPriority, duration: Duration) -> Self {
         Self {
             key: TaskKey::generate(),
@@ -40,10 +41,12 @@ pub struct TaskKey {
 impl TaskKey {
     pub const PREFIX: u8 = b't';
 
+    #[must_use]
     pub fn new(state: TaskState, id: Uuid) -> Self {
         Self { state, id }
     }
 
+    #[must_use]
     pub fn generate() -> Self {
         Self {
             state: TaskState::default(),
@@ -63,9 +66,8 @@ impl From<&TaskKey> for Vec<u8> {
 impl TryFrom<&[u8]> for TaskKey {
     type Error = anyhow::Error;
     fn try_from(value: &[u8]) -> anyhow::Result<Self> {
-        let (state, rest) = match value {
-            [Self::PREFIX, state, rest @ ..] => (state, rest),
-            _ => bail!("unexpected prefix byte"),
+        let [Self::PREFIX, state, rest @ ..] = value else {
+            bail!("unexpected prefix byte");
         };
 
         Ok(Self::new(
@@ -87,6 +89,7 @@ pub struct TaskValue {
 }
 
 impl TaskValue {
+    #[must_use]
     pub fn new_with_current_time(duration: Duration, priority: TaskPriority) -> Self {
         let now = Utc::now();
         Self {
@@ -170,6 +173,7 @@ pub struct PriorityKey {
 impl PriorityKey {
     pub const PREFIX: u8 = b'p';
 
+    #[must_use]
     pub fn new(priority: TaskPriority, id: Uuid) -> Self {
         Self { priority, id }
     }
@@ -192,9 +196,8 @@ impl From<&PriorityKey> for Vec<u8> {
 impl TryFrom<&[u8]> for PriorityKey {
     type Error = anyhow::Error;
     fn try_from(value: &[u8]) -> anyhow::Result<Self> {
-        let (priority, uuid) = match value {
-            [Self::PREFIX, priority, uuid @ ..] => (priority, uuid),
-            _ => bail!("unexpected prefix byte"),
+        let [Self::PREFIX, priority, uuid @ ..] = value else {
+            bail!("unexpected prefix byte");
         };
 
         Ok(Self::new(TaskPriority(*priority), Uuid::from_slice(uuid)?))

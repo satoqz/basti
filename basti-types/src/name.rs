@@ -8,7 +8,7 @@ pub struct WorkerName(String);
 
 impl WorkerName {
     pub fn validate(s: &str) -> anyhow::Result<()> {
-        if s.len() < 1 {
+        if s.is_empty() {
             bail!("name is empty")
         }
 
@@ -25,10 +25,12 @@ impl WorkerName {
         Ok(())
     }
 
+    #[must_use]
     pub fn inner(&self) -> &String {
         &self.0
     }
 
+    #[must_use]
     pub fn into_inner(self) -> String {
         self.0
     }
@@ -37,7 +39,7 @@ impl WorkerName {
 impl FromStr for WorkerName {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::validate(s).map(|_| Self(s.to_string()))
+        Self::validate(s).map(|()| Self(s.to_string()))
     }
 }
 
@@ -64,6 +66,6 @@ impl<'de> Deserialize<'de> for WorkerName {
         let name = String::deserialize(deserializer)?;
         Self::from_str(name.as_ref())
             .map(|_| Self(name))
-            .map_err(|err| serde::de::Error::custom(err))
+            .map_err(serde::de::Error::custom)
     }
 }

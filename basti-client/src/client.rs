@@ -9,12 +9,12 @@ use uuid::Uuid;
 use basti_types::{CreateTask, Task, TaskPriority, TaskState};
 
 #[derive(Debug)]
-pub struct BastiClient {
+pub struct Client {
     endpoints: Vec<Url>,
     http_client: reqwest::Client,
 }
 
-impl BastiClient {
+impl Client {
     pub fn new(endpoints: Vec<Url>) -> anyhow::Result<Self> {
         Ok(Self {
             endpoints,
