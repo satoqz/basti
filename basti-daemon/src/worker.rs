@@ -64,11 +64,7 @@ pub async fn run(amount: NonZeroUsize, client: KvClient, name: Name) {
                     tracing::error!("failed to requeue tasks: {err}");
                     sleep(Duration::from_secs(5)).await;
                 }
-                Ok(queue_empty) => {
-                    if queue_empty {
-                        sleep(Duration::from_millis(500)).await
-                    }
-                }
+                Ok(()) => sleep(Duration::from_millis(500)).await,
             };
         }
     };
@@ -162,13 +158,9 @@ async fn find_work(client: &mut KvClient, name: Name) -> anyhow::Result<Option<(
     Ok(None)
 }
 
-async fn requeue_tasks(client: &mut KvClient) -> anyhow::Result<bool> {
-    let now = Utc::now();
-
+async fn requeue_tasks(client: &mut KvClient) -> anyhow::Result<()> {
     let tasks = list_tasks(client, Some(TaskState::Running), 10).await?;
-    if tasks.is_empty() {
-        return Ok(true);
-    }
+    let now = Utc::now();
 
     for (task, revision) in tasks {
         if now - task.value.updated_at < WORK_TIMEOUT_DELTA {
@@ -188,5 +180,5 @@ async fn requeue_tasks(client: &mut KvClient) -> anyhow::Result<bool> {
         }
     }
 
-    Ok(false)
+    Ok(())
 }
