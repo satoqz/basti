@@ -7,17 +7,17 @@ use tokio::{
     time::{sleep, Duration},
 };
 
-use basti_types::{Name, Task, TaskState};
+use basti_types::{Task, TaskState, WorkerName};
 
 use crate::ops::{
     acquire_task, find_task, finish_task, list_priorities, list_tasks, progress_task, requeue_task,
-    MaybeRevisionError, Revision,
+    Revision,
 };
 
 const WORK_TIMEOUT_DELTA: TimeDelta = TimeDelta::seconds(10);
 const WORK_FEEDBACK_INTERVAL: Duration = Duration::from_secs(5);
 
-pub async fn run(amount: NonZeroUsize, client: KvClient, name: Name) {
+pub async fn run(amount: NonZeroUsize, client: KvClient, name: WorkerName) {
     let (work_sender, work_receiver) = async_channel::bounded(1);
     let (work_request_sender, mut work_request_receiver) = mpsc::channel(amount.get());
 
@@ -29,9 +29,8 @@ pub async fn run(amount: NonZeroUsize, client: KvClient, name: Name) {
             loop {
                 work_request_sender.send(()).await.unwrap();
                 let (task, revision) = task_receiver.recv().await.unwrap();
-                let task_id = task.key.id;
-                if let Err(err) = work_on_task(&mut client, task, revision).await {
-                    tracing::error!("failed to work on task {task_id}: {err}")
+                if let Err(_) = work_on_task(&mut client, task, revision).await {
+                    sleep(Duration::from_secs(5)).await;
                 }
             }
         }
@@ -44,10 +43,7 @@ pub async fn run(amount: NonZeroUsize, client: KvClient, name: Name) {
         work_request_receiver.recv().await.unwrap();
         loop {
             match find_work(&mut find_work_client, name.clone()).await {
-                Err(err) => {
-                    tracing::error!("failed to find work: {err}");
-                    sleep(Duration::from_secs(5)).await;
-                }
+                Err(_) => sleep(Duration::from_secs(5)).await,
                 Ok(None) => sleep(Duration::from_millis(500)).await,
                 Ok(Some(work)) => {
                     work_sender.send(work).await.unwrap();
@@ -60,10 +56,7 @@ pub async fn run(amount: NonZeroUsize, client: KvClient, name: Name) {
     let requeue_tasks_handle = async move {
         loop {
             match requeue_tasks(&mut requeue_tasks_client).await {
-                Err(err) => {
-                    tracing::error!("failed to requeue tasks: {err}");
-                    sleep(Duration::from_secs(5)).await;
-                }
+                Err(_) => sleep(Duration::from_secs(5)).await,
                 Ok(()) => sleep(Duration::from_millis(500)).await,
             };
         }
@@ -76,6 +69,7 @@ pub async fn run(amount: NonZeroUsize, client: KvClient, name: Name) {
     );
 }
 
+#[tracing::instrument(skip_all, err(Display))]
 async fn work_on_task(
     client: &mut KvClient,
     mut task: Task,
@@ -91,73 +85,74 @@ async fn work_on_task(
         };
 
         tracing::info!(
-            "working on {} for {}.{:03}s",
-            task.key.id,
-            work_duration.as_secs(),
-            work_duration.subsec_millis()
+            id = %task_id,
+            event = "working",
+            amount = format!(
+                "{}.{:03}s",
+                work_duration.as_secs(),
+                work_duration.subsec_millis()
+            ),
         );
 
         sleep(work_duration).await;
-        (task, revision) = match progress_task(client, task, revision, work_duration).await {
-            Err(MaybeRevisionError::Other(err)) => return Err(err),
-            Err(MaybeRevisionError::BadRevision) => {
-                tracing::info!("could not progress task {task_id}, it was modified by someone else (either requeued or canceled)");
+
+        (task, revision) = match progress_task(client, task, revision, work_duration).await? {
+            Some(update) => update,
+            None => {
+                tracing::warn!(id = %task_id, event = "stolen");
                 return Ok(());
             }
-            Ok(update) => update,
         };
     }
 
-    match finish_task(client, &task.key ,revision).await {
-        Err(MaybeRevisionError::Other(err)) => return Err(err),
-        Err(MaybeRevisionError::BadRevision) => tracing::info!(
-            "could not finish task {}, it was modified by someone else (either requeued or canceled)",
-            task.key.id
-        ),
-        Ok(_) => {
+    match finish_task(client, &task.key, revision).await? {
+        Some(_) => {
             let time_taken = (Utc::now() - task.value.created_at).to_std()?;
             tracing::info!(
-                "finished task {} after {}.{:03}s",
-                task.key.id,
-                time_taken.as_secs(),
-                time_taken.subsec_millis()
+                id = %task_id,
+                event = "finished",
+                total = format!(
+                    "{}.{:03}s",
+                    time_taken.as_secs(),
+                    time_taken.subsec_millis()
+                ),
             );
         }
+        None => tracing::warn!(id = %task_id, event = "stolen"),
     };
 
     Ok(())
 }
 
-async fn find_work(client: &mut KvClient, name: Name) -> anyhow::Result<Option<(Task, Revision)>> {
+#[tracing::instrument(skip_all, err(Display))]
+async fn find_work(
+    client: &mut KvClient,
+    name: WorkerName,
+) -> anyhow::Result<Option<(Task, Revision)>> {
     let priorities = list_priorities(client, 10).await?;
 
     for priority in priorities.into_iter() {
-        tracing::info!("trying to find matching task for priority {}", priority.id);
-        let Some((task, revision)) = find_task(client, priority.id, [TaskState::Queued]).await?
+        let Some((task, revision)) = find_task(client, priority.id, &[TaskState::Queued]).await?
         else {
-            tracing::warn!("could not find task matching priority {}", priority.id);
             continue;
         };
 
-        tracing::info!("trying to acquire task {}", priority.id);
-        match acquire_task(client, task, revision, name.clone()).await {
-            Err(MaybeRevisionError::BadRevision) => tracing::info!(
-                "could not acquire task {}, it was modified by someone else",
-                priority.id
-            ),
-            Err(MaybeRevisionError::Other(err)) => {
-                tracing::error!("failed to acquire task {}: {}", priority.id, err)
-            }
-            Ok((task, revision)) => {
-                tracing::info!("acquired task {}", task.key.id);
+        match acquire_task(client, task, revision, name.clone()).await? {
+            Some((task, revision)) => {
+                tracing::info!(id = %task.key.id, event = "acquired");
                 return Ok(Some((task, revision)));
             }
+            None => tracing::info!(
+                id = %priority.id,
+                event = "stolen"
+            ),
         }
     }
 
     Ok(None)
 }
 
+#[tracing::instrument(skip_all, err(Display))]
 async fn requeue_tasks(client: &mut KvClient) -> anyhow::Result<()> {
     let tasks = list_tasks(client, Some(TaskState::Running), 10).await?;
     let now = Utc::now();
@@ -168,15 +163,11 @@ async fn requeue_tasks(client: &mut KvClient) -> anyhow::Result<()> {
         }
 
         let task_id = task.key.id;
-        tracing::info!("trying to requeue task {task_id}");
-        match requeue_task(client, task, revision).await {
-            Err(MaybeRevisionError::BadRevision) => {
-                tracing::info!("could not requeue task {task_id}, it was modified by someone else")
+        match requeue_task(client, task, revision).await? {
+            Some(_) => tracing::info!(id = %task_id, event = "requeued"),
+            None => {
+                tracing::info!(id = %task_id, event = "stolen")
             }
-            Err(MaybeRevisionError::Other(err)) => {
-                tracing::error!("failed to requeue task {task_id}: {err}")
-            }
-            Ok(_) => tracing::info!("re-queued task {task_id}"),
         }
     }
 

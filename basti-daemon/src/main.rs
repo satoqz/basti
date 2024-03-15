@@ -4,18 +4,16 @@ mod worker;
 
 use std::{net::SocketAddr, num::NonZeroUsize, time::Duration};
 
-use anyhow::bail;
 use clap::Parser;
 use etcd_client::{Client, ConnectOptions};
-use tracing::Level;
 use url::Url;
 
-use basti_types::Name;
+use basti_types::WorkerName;
 
 #[derive(Debug, Parser)]
 struct Cli {
     #[clap(long, env = "BASTID_NAME", required = true, help = "Name of the node")]
-    name: Name,
+    name: WorkerName,
 
     #[clap(
         long,
@@ -55,10 +53,7 @@ struct Cli {
 async fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
 
-    tracing_subscriber::fmt()
-        .with_max_level(Level::INFO)
-        .pretty()
-        .init();
+    tracing_subscriber::fmt().with_target(false).init();
 
     let client = Client::connect(
         args.etcd,
@@ -74,13 +69,13 @@ async fn main() -> anyhow::Result<()> {
     match (NonZeroUsize::new(args.workers), args.no_api) {
         (Some(amount), false) => {
             tokio::select! {
-                _ = worker::run(amount, client.clone(), args.name) => bail!("worker exited unexpectedly"),
+                _ = worker::run(amount, client.clone(), args.name) => {},
                 result = api::run(args.listen, client) => result?,
             }
         }
         (Some(amount), true) => worker::run(amount, client, args.name).await,
         (None, false) => api::run(args.listen, client.clone()).await?,
-        (None, true) => bail!("nothing to do: running 0 workers and no api service"),
+        (None, true) => {}
     };
 
     Ok(())

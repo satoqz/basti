@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 use uuid::Uuid;
 
-use crate::Name;
+use crate::WorkerName;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateTask {
@@ -78,7 +78,7 @@ impl TryFrom<&[u8]> for TaskKey {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct TaskValue {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub assignee: Option<Name>,
+    pub assignee: Option<WorkerName>,
     pub remaining: Duration,
     pub updated_at: DateTime<Utc>,
     pub priority: TaskPriority,

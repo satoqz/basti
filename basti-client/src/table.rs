@@ -7,7 +7,7 @@ use tabled::{
     },
 };
 
-use basti_types::{Name, Task, TaskState};
+use basti_types::{Task, TaskState, WorkerName};
 
 const PROGRESS_BAR_LENGTH: usize = 16;
 
@@ -48,7 +48,7 @@ pub fn print_task_table(tasks: Vec<Task>) {
             task.value.priority.to_string(),
             task.value
                 .assignee
-                .map(Name::into_inner)
+                .map(WorkerName::into_inner)
                 .unwrap_or("none".into()),
             format!(
                 "{}.{:03}s",
