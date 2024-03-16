@@ -6,11 +6,13 @@ use std::{
 use anyhow::anyhow;
 
 pub fn reexec_with_watch(interval: f32) -> anyhow::Result<()> {
-    let args = ["--color", "--no-rerun", "--no-title", "--no-wrap"]
-        .into_iter()
-        .map(String::from)
-        .chain([format!("--interval={interval}"), "--exec".into()])
-        .chain(env::args().filter(|arg| arg != "--watch"));
+    let args = [
+        format!("--interval={interval}"),
+        "--color".into(),
+        "--exec".into(),
+    ]
+    .into_iter()
+    .chain(env::args().filter(|arg| arg != "--watch"));
 
     let err = Command::new("watch").args(args).exec();
     Err(match err.kind() {

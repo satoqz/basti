@@ -59,7 +59,7 @@ pub struct WatchArgs {
     #[clap(
         long,
         required = false,
-        default_value_t = 0.25,
+        default_value_t = 1.0,
         help = "Refresh interval when watching"
     )]
     watch_interval: f32,
