@@ -15,7 +15,6 @@ FROM scratch
 COPY --from=builder /usr/local/cargo/bin/bastid /
 ENV PATH /
 
-ENV BASTID_NAME bastid
 ENV BASTID_LISTEN 0.0.0.0:1337
 
 ENTRYPOINT [ "bastid" ]

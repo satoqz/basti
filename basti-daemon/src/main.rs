@@ -13,7 +13,12 @@ use basti_types::WorkerName;
 
 #[derive(Debug, Parser)]
 struct Cli {
-    #[clap(long, env = "BASTID_NAME", required = true, help = "Name of the node")]
+    #[clap(
+        long,
+        env = "BASTID_NAME",
+        default_value = "default",
+        help = "Name of the node"
+    )]
     name: WorkerName,
 
     #[clap(

@@ -26,6 +26,5 @@ services:
       - 1337:1337
     command:
       - --etcd=http://etcd:2379
-      - --name=bastid
     depends_on:
       - etcd
