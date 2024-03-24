@@ -36,12 +36,12 @@ pub async fn run(addr: SocketAddr, client: KvClient) -> anyhow::Result<()> {
 }
 
 #[derive(Debug)]
-pub struct Error(anyhow::Error);
+pub struct Error;
 pub type Result<T> = std::result::Result<T, Error>;
 
 impl From<anyhow::Error> for Error {
-    fn from(value: anyhow::Error) -> Self {
-        Self(value)
+    fn from(_: anyhow::Error) -> Self {
+        Self
     }
 }
 
