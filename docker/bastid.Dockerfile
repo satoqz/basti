@@ -8,11 +8,11 @@ WORKDIR /build
 COPY . .
 
 RUN cargo fetch --locked
-RUN cargo install --locked --path basti-daemon
+RUN cargo build --frozen --release --bin bastid
 
 FROM scratch 
 
-COPY --from=builder /usr/local/cargo/bin/bastid /
+COPY --from=builder /build/target/release/bastid /
 ENV PATH /
 
 ENV BASTID_LISTEN 0.0.0.0:1337
