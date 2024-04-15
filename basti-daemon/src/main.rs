@@ -2,7 +2,7 @@ mod api;
 mod ops;
 mod worker;
 
-use std::{net::SocketAddr, num::NonZeroUsize, process::exit, time::Duration};
+use std::{net::SocketAddr, num::NonZeroUsize, process::exit, str::FromStr, time::Duration};
 
 use clap::Parser;
 use etcd_client::{Client, ConnectOptions};
@@ -13,13 +13,8 @@ use basti_types::WorkerName;
 
 #[derive(Debug, Parser)]
 struct Cli {
-    #[clap(
-        long,
-        env = "BASTID_NAME",
-        default_value = "default",
-        help = "Name of the node"
-    )]
-    name: WorkerName,
+    #[clap(long, env = "BASTID_NAME", help = "Name of the node")]
+    name: Option<WorkerName>,
 
     #[clap(
         long,
@@ -55,6 +50,14 @@ struct Cli {
     etcd: Vec<Url>,
 }
 
+fn default_worker_name() -> WorkerName {
+    hostname::get()
+        .ok()
+        .and_then(|name| name.into_string().ok())
+        .and_then(|name| WorkerName::from_str(&name).ok())
+        .unwrap_or_default()
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
@@ -75,7 +78,12 @@ async fn main() -> anyhow::Result<()> {
     let run_worker = {
         let client = client.clone();
         |amount| async move {
-            worker::run(amount, client, args.name).await;
+            worker::run(
+                amount,
+                client,
+                args.name.unwrap_or_else(default_worker_name),
+            )
+            .await;
         }
     };
 

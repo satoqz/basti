@@ -17,6 +17,7 @@ chrono.workspace = true
 clap.workspace = true
 etcd-client = "0.12.4"
 futures.workspace = true
+hostname = "0.4.0"
 serde.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "signal"] }
 tracing = "0.1.40"

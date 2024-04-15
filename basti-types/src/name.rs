@@ -3,28 +3,34 @@ use std::{fmt::Display, str::FromStr};
 use anyhow::bail;
 use serde::{Deserialize, Serialize};
 
+fn validate_worker_name(s: &str) -> anyhow::Result<()> {
+    if s.is_empty() {
+        bail!("name is empty")
+    }
+
+    if s.len() > 32 {
+        bail!("name is longer than 32 characters")
+    }
+
+    if !s.chars().all(|c| {
+        c == '-' || c.is_ascii_digit() || (c.is_ascii_alphabetic() && c.is_ascii_lowercase())
+    }) {
+        bail!("name may only contain characters -, 0-9, a-z")
+    }
+
+    Ok(())
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct WorkerName(String);
 
-impl WorkerName {
-    pub fn validate(s: &str) -> anyhow::Result<()> {
-        if s.is_empty() {
-            bail!("name is empty")
-        }
-
-        if s.len() > 32 {
-            bail!("name is longer than 32 characters")
-        }
-
-        if !s.chars().all(|c| {
-            c == '-' || c.is_ascii_digit() || (c.is_ascii_alphabetic() && c.is_ascii_lowercase())
-        }) {
-            bail!("name may only contain characters -, 0-9, a-z")
-        }
-
-        Ok(())
+impl Default for WorkerName {
+    fn default() -> Self {
+        WorkerName("default".into())
     }
+}
 
+impl WorkerName {
     #[must_use]
     pub fn inner(&self) -> &String {
         &self.0
@@ -39,7 +45,7 @@ impl WorkerName {
 impl FromStr for WorkerName {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::validate(s).map(|()| Self(s.to_string()))
+        validate_worker_name(s).map(|()| Self(s.to_string()))
     }
 }
 
