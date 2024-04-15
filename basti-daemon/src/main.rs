@@ -24,7 +24,7 @@ struct Cli {
     #[clap(
         long,
         env = "BASTID_WORKERS",
-        default_value_t = 3,
+        default_value_t = 1,
         help = "Number of workers to run"
     )]
     workers: usize,
