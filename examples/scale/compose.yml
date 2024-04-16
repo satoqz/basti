@@ -1,0 +1,33 @@
+#!/usr/bin/env -S docker compose -p basti-scale -f
+
+volumes:
+  etcd:
+
+services:
+  etcd:
+    image: ghcr.io/satoqz/etcd:latest
+    volumes:
+      - etcd:/data
+    command:
+      - --data-dir=/data
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd:2379
+
+  api:
+    image: ghcr.io/satoqz/bastid:latest
+    ports:
+      - 1337:1337
+    command:
+      - --etcd=http://etcd:2379
+      - --workers=0
+    depends_on:
+      - etcd
+
+  worker:
+    image: ghcr.io/satoqz/bastid:latest
+    command:
+      - --etcd=http://etcd:2379
+      - --workers=1
+      - --no-api
+    depends_on:
+      - etcd
