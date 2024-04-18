@@ -6,7 +6,7 @@ use std::{net::SocketAddr, num::NonZeroUsize, process::exit, str::FromStr, time:
 
 use clap::Parser;
 use etcd_client::{Client, ConnectOptions};
-use tokio::signal;
+use tokio::{signal, task::JoinSet};
 use url::Url;
 
 use basti_types::WorkerName;
@@ -75,33 +75,28 @@ async fn main() -> anyhow::Result<()> {
     .await?
     .kv_client();
 
-    let run_worker = {
-        let client = client.clone();
-        |amount| async move {
-            worker::run(
-                amount,
-                client,
-                args.name.unwrap_or_else(default_worker_name),
-            )
-            .await;
-        }
-    };
+    let mut tasks = JoinSet::new();
 
-    let run_api = || async move {
-        if let Err(err) = api::run(args.listen, client).await {
-            tracing::error!("api exited with error: {err}");
-            exit(1);
-        }
-    };
+    if let Some(amount) = NonZeroUsize::new(args.workers) {
+        tasks.spawn(worker::run(
+            amount,
+            client.clone(),
+            args.name.unwrap_or_else(default_worker_name),
+        ));
+    }
 
-    match (NonZeroUsize::new(args.workers), args.no_api) {
-        (Some(amount), false) => {
-            tokio::join!(run_api(), run_worker(amount));
-        }
-        (Some(amount), true) => run_worker(amount).await,
-        (None, false) => run_api().await,
-        (None, true) => tracing::warn!("nothing to do"),
-    };
+    if !args.no_api {
+        tasks.spawn(async move {
+            if let Err(err) = api::run(args.listen, client).await {
+                tracing::error!("api exited with error: {err}");
+                exit(1);
+            }
+        });
+    }
+
+    while let Some(result) = tasks.join_next().await {
+        result?
+    }
 
     Ok(())
 }
