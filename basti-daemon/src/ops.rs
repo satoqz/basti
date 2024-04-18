@@ -9,9 +9,6 @@ use uuid::Uuid;
 
 use basti_types::{PriorityKey, Task, TaskKey, TaskPriority, TaskState, WorkerName};
 
-#[derive(Debug)]
-pub struct Revision(i64);
-
 pub async fn create_task(
     client: &mut KvClient,
     duration: Duration,
@@ -57,7 +54,7 @@ pub async fn list_tasks(
     client: &mut KvClient,
     state: Option<TaskState>,
     limit: i64,
-) -> anyhow::Result<Vec<(Task, Revision)>> {
+) -> anyhow::Result<Vec<(Task, i64)>> {
     let key = match state {
         None => vec![TaskKey::PREFIX],
         Some(state) => vec![TaskKey::PREFIX, state.into()],
@@ -77,7 +74,7 @@ pub async fn list_tasks(
                 key: TaskKey::try_from(kv.key())?,
                 value: bson::from_slice(kv.value())?,
             },
-            Revision(kv.mod_revision()),
+            kv.mod_revision(),
         ));
     }
 
@@ -88,7 +85,7 @@ pub async fn find_task(
     client: &mut KvClient,
     id: Uuid,
     try_states: &[TaskState],
-) -> anyhow::Result<Option<(Task, Revision)>> {
+) -> anyhow::Result<Option<(Task, i64)>> {
     let txn = Txn::new().and_then(
         try_states
             .iter()
@@ -118,20 +115,20 @@ pub async fn find_task(
         value: bson::from_slice(kv.value())?,
     };
 
-    Ok(Some((task, Revision(kv.mod_revision()))))
+    Ok(Some((task, kv.mod_revision())))
 }
 
 async fn update_task_with_revision(
     client: &mut KvClient,
-    revision: Revision,
+    revision: i64,
     old_key: &TaskKey,
     new_key: &TaskKey,
     mut operations: Vec<TxnOp>,
-) -> anyhow::Result<Option<Revision>> {
+) -> anyhow::Result<Option<i64>> {
     operations.push(TxnOp::get(new_key, None));
 
     let txn = Txn::new()
-        .when([Compare::mod_revision(old_key, CompareOp::Equal, revision.0)])
+        .when([Compare::mod_revision(old_key, CompareOp::Equal, revision)])
         .and_then(operations);
 
     let response = client.txn(txn).await.map_err(anyhow::Error::from)?;
@@ -151,14 +148,14 @@ async fn update_task_with_revision(
         return Err(anyhow!("get response has no kv pair"));
     };
 
-    Ok(Some(Revision(kv.mod_revision())))
+    Ok(Some(kv.mod_revision()))
 }
 
 pub async fn requeue_task(
     client: &mut KvClient,
     mut task: Task,
-    revision: Revision,
-) -> anyhow::Result<Option<(Task, Revision)>> {
+    revision: i64,
+) -> anyhow::Result<Option<(Task, i64)>> {
     let initial_key = task.key;
 
     task.key.state = TaskState::Queued;
@@ -187,9 +184,9 @@ pub async fn requeue_task(
 pub async fn acquire_task(
     client: &mut KvClient,
     mut task: Task,
-    revision: Revision,
+    revision: i64,
     name: WorkerName,
-) -> anyhow::Result<Option<(Task, Revision)>> {
+) -> anyhow::Result<Option<(Task, i64)>> {
     let initial_key = task.key;
 
     task.key.state = TaskState::Running;
@@ -218,9 +215,9 @@ pub async fn acquire_task(
 pub async fn progress_task(
     client: &mut KvClient,
     mut task: Task,
-    revision: Revision,
+    revision: i64,
     progress: Duration,
-) -> anyhow::Result<Option<(Task, Revision)>> {
+) -> anyhow::Result<Option<(Task, i64)>> {
     task.value.remaining -= progress;
     task.value.updated_at = Utc::now();
 
@@ -258,13 +255,13 @@ pub async fn cancel_task(client: &mut KvClient, id: Uuid) -> anyhow::Result<Opti
 pub async fn finish_task(
     client: &mut KvClient,
     key: &TaskKey,
-    revision: Revision,
+    revision: i64,
 ) -> anyhow::Result<Option<()>> {
     let txn = Txn::new()
         .when([Compare::mod_revision(
             &key.clone(),
             CompareOp::Equal,
-            revision.0,
+            revision,
         )])
         .and_then([TxnOp::delete(key, None)]);
 

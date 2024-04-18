@@ -13,7 +13,7 @@ use basti_types::{Task, TaskState, WorkerName};
 use crate::{
     ops::{
         acquire_task, find_task, finish_task, list_priorities, list_tasks, progress_task,
-        requeue_task, Revision,
+        requeue_task,
     },
     shutdown_signal,
 };
@@ -26,7 +26,7 @@ pub async fn run(amount: NonZeroUsize, client: KvClient, name: WorkerName) {
     let (work_request_sender, mut work_request_receiver) = mpsc::channel(amount.get());
 
     let worker_handles = (0..amount.get()).map(|_| {
-        let task_receiver: async_channel::Receiver<(Task, Revision)> = work_receiver.clone();
+        let task_receiver: async_channel::Receiver<(Task, i64)> = work_receiver.clone();
         let work_request_sender: mpsc::Sender<()> = work_request_sender.clone();
         let mut client = client.clone();
         async move {
@@ -87,7 +87,7 @@ pub async fn run(amount: NonZeroUsize, client: KvClient, name: WorkerName) {
 async fn work_on_task(
     client: &mut KvClient,
     mut task: Task,
-    mut revision: Revision,
+    mut revision: i64,
 ) -> anyhow::Result<()> {
     let task_id = task.key.id;
 
@@ -138,10 +138,7 @@ async fn work_on_task(
 }
 
 #[tracing::instrument(skip_all, err(Display))]
-async fn find_work(
-    client: &mut KvClient,
-    name: WorkerName,
-) -> anyhow::Result<Option<(Task, Revision)>> {
+async fn find_work(client: &mut KvClient, name: WorkerName) -> anyhow::Result<Option<(Task, i64)>> {
     let priorities = list_priorities(client, 10).await?;
 
     for priority in priorities {
